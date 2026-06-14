@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>VTube 업로드</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;color:#eee;font:16px/1.5 sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.card{background:#16213e;padding:32px;border-radius:16px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.3)}
+h1{font-size:20px;margin-bottom:8px;color:#4a6cf7}
+p{color:#888;font-size:13px;margin-bottom:20px}
+.drop-zone{border:2px dashed #333;border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:.2s;margin-bottom:16px}
+.drop-zone:hover,.drop-zone.dragover{border-color:#4a6cf7;background:#1a1a3e}
+.drop-zone.has-file{border-color:#4a6cf7;background:#0f1a3e}
+.drop-zone svg{width:48px;height:48px;fill:#555;margin-bottom:12px}
+.drop-zone.has-file svg{fill:#4a6cf7}
+.drop-zone .hint{color:#666;font-size:13px}
+.drop-zone .fname{color:#4a6cf7;font-size:13px;display:none;word-break:break-all}
+.drop-zone.has-file .fname{display:block}
+.drop-zone.has-file .hint{display:none}
+#fileInput{display:none}
+.btn{width:100%;padding:12px;border:none;border-radius:8px;font:15px sans-serif;cursor:pointer;background:#555;color:#888;transition:.2s}
+.btn.active{background:#4a6cf7;color:#fff}
+.btn:disabled{opacity:0.4;cursor:not-allowed}
+.progress{display:none;margin-top:16px}
+.progress.show{display:block}
+.progress-bar{height:6px;background:#333;border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;background:#4a6cf7;width:0%;transition:width .3s}
+.progress-text{font-size:12px;color:#888;margin-top:6px;text-align:center}
+.result{margin-top:16px;padding:12px;border-radius:8px;font-size:13px;display:none}
+.result.ok{display:block;background:#0a2a1e;color:#4caf50;border:1px solid #1a4a2e}
+.result.fail{display:block;background:#2a0a0a;color:#f44;border:1px solid #4a1a1a}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>📦 VTube 모델 업로드</h1>
+  <p>ZIP/RAR 올리면 자동 압축 풀림</p>
+  <div class="drop-zone" id="dropZone">
+    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></svg>
+    <div class="hint">클릭 or 드래그</div>
+    <div class="fname" id="fname"></div>
+  </div>
+  <input type="file" id="fileInput" accept=".zip,.rar">
+  <button class="btn" id="uploadBtn" disabled>업로드</button>
+  <div class="progress" id="progress">
+    <div class="progress-bar"><div class="progress-fill" id="pbar"></div></div>
+    <div class="progress-text" id="ptext">0%</div>
+  </div>
+  <div class="result" id="result"></div>
+</div>
+<script>
+const dz=document.getElementById('dropZone');
+const fi=document.getElementById('fileInput');
+const btn=document.getElementById('uploadBtn');
+const prog=document.getElementById('progress');
+const pbar=document.getElementById('pbar');
+const ptext=document.getElementById('ptext');
+const res=document.getElementById('result');
+let selected=null;
+dz.onclick=()=>fi.click();
+dz.ondragover=e=>{e.preventDefault();dz.classList.add('dragover');};
+dz.ondragleave=()=>dz.classList.remove('dragover');
+dz.ondrop=e=>{e.preventDefault();dz.classList.remove('dragover');if(e.dataTransfer.files.length)selectFile(e.dataTransfer.files[0]);};
+fi.onchange=()=>{if(fi.files.length)selectFile(fi.files[0]);};
+function selectFile(f){
+  if(!f.name.endsWith('.zip') && !f.name.endsWith('.rar')){showResult('ZIP/RAR만 가능','fail');return;}
+  selected=f;
+  document.getElementById('fname').textContent=f.name+' ('+(f.size/1024/1024).toFixed(1)+'MB)';
+  dz.classList.add('has-file');
+  btn.textContent='업로드';btn.classList.add('active');btn.disabled=false;
+  res.style.display='none';
+}
+btn.onclick=async()=>{
+  if(!selected)return;
+  btn.disabled=true;btn.textContent='업로드 중...';
+  prog.classList.add('show');pbar.style.width='0%';ptext.textContent='0%';
+  res.style.display='none';
+  const fd=new FormData();
+  fd.append('file',selected);
+  fd.append('filename',selected.name);
+  try{
+    const xhr=new XMLHttpRequest();
+    xhr.open('POST','/u/upload');
+    xhr.upload.onprogress=e=>{
+      if(e.lengthComputable){const p=Math.round(e.loaded/e.total*100);pbar.style.width=p+'%';ptext.textContent=p+'%';}
+    };
+    const r=await new Promise((ok,no)=>{
+      xhr.onload=()=>{if(xhr.status===200)ok(JSON.parse(xhr.responseText));else no(new Error(xhr.status+' '+xhr.statusText));};
+      xhr.onerror=()=>no(new Error('Network error'));
+      xhr.send(fd);
+    });
+    if(r.ok)showResult('✅ 업로드 완료!<br>모델: '+r.modelName+'<br>리로드 후 모델 버튼 클릭','ok');
+    else showResult('❌ '+r.error,'fail');
+  }catch(e){showResult('❌ '+e.message,'fail');}
+  prog.classList.remove('show');
+  btn.disabled=false;btn.textContent='업로드';
+};
+function showResult(msg,cls){res.className='result '+cls;res.innerHTML=msg;}
+</script>
+</body>
+</html>

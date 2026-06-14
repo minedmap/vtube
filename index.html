@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>VTube</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0f;overflow:hidden;height:100vh;display:flex;align-items:center;justify-content:center}
+#wrap{position:relative;width:100%;max-width:1024px;aspect-ratio:16/9;background:#1a1a2e;border-radius:12px;overflow:hidden}
+canvas{width:100%!important;height:100%!important;display:block}
+#status{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:#888;font:14px/1.4 sans-serif;background:#0a0a0f;padding:8px 16px;border-radius:8px;z-index:10;text-align:center;pointer-events:none}
+#error{position:absolute;top:20px;left:50%;transform:translateX(-50%);color:#f44;font:13px/1.4 sans-serif;background:#100;padding:8px 16px;border-radius:8px;z-index:10;display:none;max-width:80vw;word-break:break-word}
+#camBtn{position:absolute;top:10px;left:10px;z-index:20;padding:6px 12px;font:12px sans-serif;background:#333;color:#fff;border:none;border-radius:6px;cursor:pointer;user-select:none}
+#camBtn:active{background:#555}
+#camBox{position:absolute;top:10px;right:10px;z-index:25;width:240px;border-radius:6px;overflow:hidden;border:1px solid #4a6cf7;display:none}
+#camBox video{width:100%;display:block;transform:scaleX(-1)}
+#camBox canvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1)}
+@media(max-width:480px){
+  #camBox{width:160px}
+  #status{font:11px/1.3 sans-serif;padding:5px 10px}
+  #camBtn{font:11px;padding:5px 10px}
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div id="status">로딩 중...</div>
+  <div id="error"></div>
+  <button id="camBtn">CAM ON</button>
+  <select id="modelSel" style="position:absolute;top:10px;left:70px;z-index:20;padding:4px 8px;font:12px sans-serif;background:#333;color:#fff;border:none;border-radius:6px;cursor:pointer;outline:none"></select>
+  <button id="vtsBtn" style="position:absolute;top:10px;left:150px;z-index:20;padding:6px 12px;font:12px sans-serif;background:#555;color:#aaa;border:none;border-radius:6px;cursor:pointer;user-select:none">VTS</button>
+  <button id="boxToggle" style="display:none;position:absolute;top:10px;left:230px;z-index:20;padding:6px 12px;font:12px sans-serif;background:#333;color:#fff;border:none;border-radius:6px;cursor:pointer;user-select:none">박스 OFF</button>
+  <div id="ctrl" style="position:absolute;bottom:60px;left:50%;transform:translateX(-50%);z-index:20;display:flex;gap:10px;align-items:center;background:rgba(0,0,0,0.5);padding:6px 14px;border-radius:8px">
+    <span style="color:#888;font:11px sans-serif">크기</span>
+    <input type="range" id="sizeSlider" min="2" max="80" value="18" style="width:100px;height:4px;accent-color:#4a6cf7">
+    <span id="sizeVal" style="color:#fff;font:11px sans-serif;min-width:28px;text-align:right">18</span>
+    <span style="color:#888;font:11px sans-serif;margin-left:6px">Y</span>
+    <input type="range" id="ySlider" min="-80" max="300" value="0" style="width:100px;height:4px;accent-color:#4a6cf7">
+    <span id="yVal" style="color:#fff;font:11px sans-serif;min-width:28px;text-align:right">0</span>
+    <button id="flipBtn" style="padding:4px 10px;font:11px sans-serif;background:#555;color:#fff;border:none;border-radius:5px;cursor:pointer">반전</button>
+    <button id="overlayBtn" style="padding:4px 10px;font:11px sans-serif;background:#4a6cf7;color:#fff;border:none;border-radius:5px;cursor:pointer">오버레이</button>
+    <button id="faceToggle" style="padding:4px 10px;font:11px sans-serif;background:#4a6cf7;color:#fff;border:none;border-radius:5px;cursor:pointer">얼굴</button>
+    <button id="handToggle" style="padding:4px 10px;font:11px sans-serif;background:#4a6cf7;color:#fff;border:none;border-radius:5px;cursor:pointer">손</button>
+  </div>
+  <div id="camBox"><video id="cam" autoplay playsinline></video><canvas id="ov"></canvas></div>
+</div>
+<script src="/vtube/lib/pixi.min.js"></script>
+<script>
+window.process = {env:{NODE_ENV:'production'},argv:[],on:function(){},versions:{node:''}};
+</script>
+<script src="/vtube/lib/live2dcubismcore.min.js"></script>
+<script src="/vtube/lib/cubism4.min.js"></script>
+<script>
+(function(){
+const $ = id => document.getElementById(id);
+const statusEl = $('status'), errEl = $('error'), camBtn = $('camBtn');
+const setStatus = t => { statusEl.textContent = t; };
+const setError = m => { errEl.style.display='block'; errEl.textContent=m; };
+
+let app, faceLandmarker, currentModel, stream, headX = 0, headY = 0, rawX = 0, rawY = 0, trackingLoop = null, boxVisible = true;
+let mouthOpen = 0, eyeLOpen = 1, eyeROpen = 1, blinkTimer = 0, flipX = false, overlayShow = true, faceOn = true, handOn = true;
+let handData = []; // list of {landmarks:[21], worldLandmarks:[21], handedness:'Left'|'Right'} per detected hand
+// arm state from hands
+let armL = { open:0, wx:0, wy:0 }, armR = { open:0, wx:0, wy:0 };
+const _arm = { armL, armR };
+window.__debug = _arm;
+const MODELS = [
+  { path: '/vtube/models/20250913/20250913.model3.json', label: 'Hand', anchor: [0.5, 0.5], scale: 0.24 },
+  { path: '/vtube/models/huohuo/huohuo.model3.json', label: 'Huohuo', anchor: [0.5, 0.45], scale: 0.2 },
+
+  { path: '/vtube/models/Mao/Mao.model3.json', label: 'Mao', anchor: [0.5, 0.35], scale: 0.18 },
+  { path: '/vtube/models/Frieren/Frieren.model3.json', label: 'Frieren', anchor: [0.5, 0.45], scale: 0.2 },
+  { path: '/vtube/models/Hiyori/Hiyori.model3.json', label: 'Hiyori', anchor: [0.5, 0.15], scale: 0.22 },
+  // Rice removed
+];
+let modelIdx = 0;
+
+async function loadModel(cfg) {
+  if (currentModel) { app.stage.removeChild(currentModel); currentModel.destroy(true); }
+  setStatus('모델 로딩... '+cfg.label);
+  const m = await PIXI.live2d.Live2DModel.from(cfg.path);
+  m.anchor.set(cfg.anchor[0], cfg.anchor[1]);
+  m.scale.set(cfg.scale);
+  m.interactive = false;
+  m.position.set(app.screen.width/2, app.screen.height * 0.2);
+  app.stage.addChild(m);
+
+  await new Promise(r => { if (m.internalModel) return r(); m.once('modelLoaded', r); });
+
+  const im = m.internalModel;
+  // wait for coreModel to be available
+  for (let i = 0; i < 20; i++) {
+    if (im && im.coreModel && im.coreModel._model) break;
+    await new Promise(r => setTimeout(r, 50));
+  }
+  if (!im || !im.coreModel || !im.coreModel._model) { throw new Error('coreModel not ready'); }
+  const pVals = im.coreModel._model.parameters.values;
+  const pIds = im.coreModel._model.parameters.ids;
+
+  // cache ALL param indices (any language)
+  const idx = {};
+  for (let i = 0; i < pIds.length; i++) {
+    idx[pIds[i]] = i;
+  }
+  m._paramIdx = idx;
+  // force VTS hand tracking overlay visible
+  const pts = im.coreModel._model.parts;
+  if (pts && pts.ids) {
+    for (let pi2 = 0; pi2 < pts.ids.length; pi2++) {
+      const pid2 = pts.ids[pi2];
+      if (pid2 === 'Part70' || pid2 === 'Part59' || pid2 === 'Part48') {
+        pts.opacities[pi2] = 1.0;
+        console.log('FORCE PART OPACITY 1.0:', pid2);
+      }
+    }
+  }
+  // apply hand tracking expression (hide normal arms, show hand overlay)
+  // (values controlled dynamically in tracking loop: 0 when no hand, 30 when hand detected)
+  if (idx.Param15 >= 0) pVals[idx.Param15] = 0.0;
+  if (idx.Param21 >= 0) pVals[idx.Param21] = 0.0;
+  // arm param ranges for active model
+  if (!window.__armPv) window.__armPv = {};
+  const mins = im.coreModel._model.parameters.minimumValues;
+  const maxs = im.coreModel._model.parameters.maximumValues;
+  for (const key of Object.keys(idx)) {
+    if (key.includes('Arm') || key.includes('Hand') || key.includes('Shoulder'))
+      console.log(key, 'range:', mins[idx[key]].toFixed(1), '~', maxs[idx[key]].toFixed(1));
+  }
+
+  if (im.motionManager) { im.motionManager.updateParameters = () => {}; im.motionManager.startMotionPriority = () => {}; }
+  if (im.mainMotionManager) im.mainMotionManager.stopAll();
+  if (im.expressionManager) im.expressionManager.stopAll();
+  if (im.breath) { im.breath.def = () => 0; im.breath.running = false; }
+  if (im.eyeBlink) { im.eyeBlink.def = () => 0; im.eyeBlink.running = false; }
+  if (im.physicsManager) im.physicsManager.update = () => {};
+
+  const fc = im.focusController;
+  if (fc) { fc.x = 0; fc.y = 0; fc.targetX = 0; fc.targetY = 0; fc.vx = 0; fc.vy = 0; fc.enabled = false; }
+  if (m.focus) m.focus = () => {};
+
+  const origUpdate = im.update;
+  const pi = idx;
+  const pv = pVals;
+  im.update = function() {
+    if (pi.ParamAngleX >= 0) pv[pi.ParamAngleX] = headX * 68;
+    if (pi.ParamAngleY >= 0) pv[pi.ParamAngleY] = headY * 114;
+    if (pi.ParamBodyAngleX >= 0) pv[pi.ParamBodyAngleX] = headX * Math.abs(headX) * 80;
+    if (pi.ParamBodyAngleY >= 0) pv[pi.ParamBodyAngleY] = headY * Math.abs(headY) * 100;
+    if (pi.ParamMouthOpenY >= 0) pv[pi.ParamMouthOpenY] = mouthOpen;
+    if (pi.ParamA >= 0) pv[pi.ParamA] = mouthOpen;
+    if (pi.ParamEyeLOpen >= 0) pv[pi.ParamEyeLOpen] = eyeLOpen;
+    if (pi.ParamEyeROpen >= 0) pv[pi.ParamEyeROpen] = eyeROpen;
+    // auto blink every 2-5 seconds
+    blinkTimer++;
+    if (blinkTimer > 120 + Math.random() * 180) {
+      const blinkPhase = Math.min(1, (blinkTimer - 120) / 6);
+      const bk = blinkPhase < 0.5 ? blinkPhase * 2 : (1 - blinkPhase) * 2;
+      const blinkVal = 1 - Math.max(0, bk) * 0.9;
+      if (pi.ParamEyeLOpen >= 0) pv[pi.ParamEyeLOpen] = Math.min(eyeLOpen, blinkVal);
+      if (pi.ParamEyeROpen >= 0) pv[pi.ParamEyeROpen] = Math.min(eyeROpen, blinkVal);
+      if (blinkPhase >= 1) blinkTimer = 0;
+    }
+    // ── arm from hand ──
+    // right arm (detailed - Hiyori style)
+    if (pi.ParamRightShoulderUp >= 0) pv[pi.ParamRightShoulderUp] = -armR.wy * 10;
+    if (pi.ParamArmRA01 >= 0) pv[pi.ParamArmRA01] = -armR.wy * 20;       // -10~30
+    if (pi.ParamArmRA02 >= 0) pv[pi.ParamArmRA02] = -armR.wx * 15;       // -20~10
+    if (pi.ParamArmRA03 >= 0) pv[pi.ParamArmRA03] = armR.open * 30;      // -30~30
+    if (pi.ParamArmRB01 >= 0) pv[pi.ParamArmRB01] = armR.wy * 20;        // -30~30
+    if (pi.ParamArmRB02 >= 0) pv[pi.ParamArmRB02] = -armR.wx * 20;       // -30~30
+    if (pi.ParamArmRB02Y !== undefined && pi.ParamArmRB02Y >= 0) pv[pi.ParamArmRB02Y] = armR.wy < 0 ? -armR.wy * 20 : 0;  // 0~30
+    if (pi.ParamArmRB03 >= 0) pv[pi.ParamArmRB03] = armR.open * 15;      // -20~20
+    // right arm (simple - Mao style)
+    if (pi.ParamArmRA >= 0) pv[pi.ParamArmRA] = -armR.wy * 10;           // -10~10
+    if (pi.ParamArmRB >= 0) pv[pi.ParamArmRB] = armR.wx * 10;           // -10~10
+    if (pi.ParamHandR >= 0) pv[pi.ParamHandR] = armR.open;               // -1~1
+    // right hand
+    if (pi.ParamHandRA >= 0) pv[pi.ParamHandRA] = (1 - armR.open) * -10; // -10~0
+    if (pi.ParamHandRB >= 0) pv[pi.ParamHandRB] = armR.open * 10;        // -10~10
+    // left arm (detailed - Hiyori style)
+    if (pi.ParamLeftShoulderUp >= 0) pv[pi.ParamLeftShoulderUp] = -armL.wy * 10;
+    if (pi.ParamArmLA01 >= 0) pv[pi.ParamArmLA01] = -armL.wy * 20;       // -10~30
+    if (pi.ParamArmLA02 >= 0) pv[pi.ParamArmLA02] = armL.wx * 15;       // -20~10
+    if (pi.ParamArmLA03 >= 0) pv[pi.ParamArmLA03] = armL.open * 30;      // -30~30
+    if (pi.ParamArmLB01 >= 0) pv[pi.ParamArmLB01] = armL.wy * 20;        // -30~30
+    if (pi.ParamArmLB02 >= 0) pv[pi.ParamArmLB02] = armL.wx * 20;       // -30~30
+    if (pi.ParamArmLB03 >= 0) pv[pi.ParamArmLB03] = armL.open * 10;      // -30~10
+    // left arm (simple - Mao style)
+    if (pi.ParamArmLA >= 0) pv[pi.ParamArmLA] = -armL.wy * 10;
+    if (pi.ParamArmLB >= 0) pv[pi.ParamArmLB] = -armL.wx * 10;
+    if (pi.ParamHandL >= 0) pv[pi.ParamHandL] = armL.open;
+    // left hand
+    if (pi.ParamHandLA >= 0) pv[pi.ParamHandLA] = (1 - armL.open) * -10; // -10~0
+    if (pi.ParamHandLB >= 0) pv[pi.ParamHandLB] = armL.open * 10;        // -10~10
+    // ── Natori arm group A ──
+    if (pi.ParamArmAR01 >= 0) pv[pi.ParamArmAR01] = -armR.wy * 20;       // -10~30
+    if (pi.ParamArmAR02 >= 0) pv[pi.ParamArmAR02] = -armR.wx * 15;       // -40~10
+    if (pi.ParamArmAR03 >= 0) pv[pi.ParamArmAR03] = armR.open * 20;      // -30~30
+    if (pi.ParamArmAR04 >= 0) pv[pi.ParamArmAR04] = (1 - armR.open) * -1; // -1~0
+    if (pi.ParamArmAL01 >= 0) pv[pi.ParamArmAL01] = -armL.wy * 20;       // -10~30
+    if (pi.ParamArmAL02 >= 0) pv[pi.ParamArmAL02] = armL.wx * 15;        // -40~10
+    if (pi.ParamArmAL03 >= 0) pv[pi.ParamArmAL03] = armL.open * 20;      // -30~30
+    if (pi.ParamArmAL04 >= 0) pv[pi.ParamArmAL04] = (1 - armL.open) * -1; // -1~0
+    // ── VTS hand tracking ──
+    if (pi.handLeftOpen >= 0) pv[pi.handLeftOpen] = (armL.open * 60) - 30;
+    if (pi.HandLeftAngleX >= 0) pv[pi.HandLeftAngleX] = armL.wy * 30;
+    if (pi.HandLeftAngleZ >= 0) pv[pi.HandLeftAngleZ] = armL.wx * 30;
+    if (pi.HandLeftPositionX >= 0) pv[pi.HandLeftPositionX] = armL.wx * 0.5;
+    if (pi.HandLeftPositionY >= 0) pv[pi.HandLeftPositionY] = armL.wy * 0.5;
+    if (pi.HandRightAngleX >= 0) pv[pi.HandRightAngleX] = armR.wy * 30;
+    if (pi.HandRightAngleZ >= 0) pv[pi.HandRightAngleZ] = armR.wx * 30;
+    if (pi.HandRightPositionX >= 0) pv[pi.HandRightPositionX] = armR.wx * 0.5;
+    if (pi.HandRightPositionY >= 0) pv[pi.HandRightPositionY] = armR.wy * 0.5;
+    // ── hand model arm params (20250913) ──
+    // Arm skeleton (Param5/6/16/17/18) — only enable wrist joints (17/18), skip full arm (5/6/16)
+    // if (pi.Param5 >= 0) pv[pi.Param5] = -armR.wy * 10;               // arm1
+    // if (pi.Param6 >= 0) pv[pi.Param6] = -armR.wx * 10;               // arm2
+    if (pi.Param7 >= 0) pv[pi.Param7] = -armL.wy * 10;               // arm3
+    // if (pi.Param16 >= 0) pv[pi.Param16] = -armR.wx * 15;             // armR2
+    if (pi.Param17 >= 0) pv[pi.Param17] = -armR.wy * 8;               // armUpRX — wrist tilt
+    // Param18 (armRZ) handled by tracking loop with hand roll
+    if (pi.Param19 >= 0) pv[pi.Param19] = armL.wx * 15;              // armZ2
+    // debug: snapshot arm params
+    if (!window.__armPv) window.__armPv = {};
+    for (const k of Object.keys(pi)) {
+      if (k.includes('Arm') || k.includes('Hand') || k.includes('Shoulder'))
+        window.__armPv[k] = pv[pi[k]];
+    }
+    return origUpdate.apply(this, arguments);
+  };
+
+  currentModel = m;
+  window.__m = m;  // expose for debug
+  $('modelSel').value = '' + modelIdx;
+  return m;
+}
+
+async function init() {
+  if (!window.PIXI) return setError('PIXI 없음');
+  if (!window.Live2DCubismCore) return setError('Core 없음');
+  if (!window.PIXI.live2d || !window.PIXI.live2d.Live2DModel) return setError('live2d 없음');
+  setStatus('로딩...');
+
+  app = new PIXI.Application({
+    view: $('c'),
+    width: window.innerWidth, height: window.innerHeight,
+    backgroundColor: 0x1a1a2e, antialias: true,
+    resolution: devicePixelRatio||1, autoDensity: true,
+    resizeTo: $('wrap')
+  });
+
+  setStatus('FaceMesh 로딩...');
+
+  // ── load MediaPipe ──
+  const mod = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.17/vision_bundle.mjs');
+  const vision = await mod.FilesetResolver.forVisionTasks('/vtube/lib/mediapipe/');
+  faceLandmarker = await mod.FaceLandmarker.createFromOptions(vision, {
+    baseOptions: { modelAssetPath: '/vtube/lib/mediapipe/face_landmarker.task' },
+    runningMode: 'VIDEO', numFaces: 1,
+    minFaceDetectionConfidence: 0.5, minTrackingConfidence: 0.5
+  });
+  handLandmarker = await mod.HandLandmarker.createFromOptions(vision, {
+    baseOptions: { modelAssetPath: '/vtube/lib/mediapipe/hand_landmarker.task' },
+    runningMode: 'VIDEO', numHands: 2,
+    minHandDetectionConfidence: 0.3, minTrackingConfidence: 0.3
+  });
+
+  setStatus('준비 완료');
+
+  // ── load first model ──
+  await loadModel(MODELS[0]);
+  setStatus('준비 완료');
+
+  // ── VTS WebSocket ──
+  let vtsWs = null, vtsToken = null, vtsAuthed = false, vtsConnecting = false;
+  function vtsConnect() {
+    if (vtsWs || vtsConnecting) return;
+    vtsConnecting = true;
+    try {
+      const ws = new WebSocket('wss://' + location.host + '/vts/');
+      ws.onopen = () => {
+        vtsWs = ws; vtsConnecting = false;
+        setStatus('VTS 연결됨');
+        ws.send(JSON.stringify({
+          apiName: 'VTubeStudioPublicAPI', apiVersion: '1.0',
+          requestID: 'auth', messageType: 'AuthenticationRequest',
+          data: { pluginName: 'HermesVTube', pluginDeveloper: 'user',
+            authenticationToken: vtsToken || '' }
+        }));
+      };
+      ws.onmessage = e => {
+        try {
+          const r = JSON.parse(e.data);
+          if (r.messageType === 'AuthenticationResponse') {
+            if (r.data.authenticated) {
+              vtsAuthed = true; vtsToken = r.data.authenticationToken;
+              setStatus('VTS 인증됨');
+            } else if (r.data.authenticationToken) {
+              vtsToken = r.data.authenticationToken;
+              setStatus('VTS: 토큰 입력 필요');
+            }
+          }
+        } catch(e2) {}
+      };
+      ws.onclose = () => { vtsWs = null; vtsAuthed = false; vtsConnecting = false; };
+      ws.onerror = () => { vtsWs = null; vtsAuthed = false; vtsConnecting = false; };
+    } catch(e) { vtsConnecting = false; }
+  }
+  // VTS param inject helper
+  const vtsInject = (paramValues) => {
+    if (!vtsWs || !vtsAuthed) return;
+    vtsWs.send(JSON.stringify({
+      apiName: 'VTubeStudioPublicAPI', apiVersion: '1.0',
+      requestID: 'param' + Date.now(), messageType: 'InjectParameterDataRequest',
+      data: { parameterValues: paramValues, setValue: false }
+    }));
+  };
+  window.__vtsConnect = vtsConnect;
+  window.__vtsInject = vtsInject;
+  // try connect VTS on load
+  setTimeout(vtsConnect, 2000);
+
+  // populate model dropdown
+  const sel = $('modelSel');
+  MODELS.forEach((m,i) => { sel.innerHTML += `<option value="${i}">${m.label}</option>`; });
+  sel.value = '0';
+  // ── model switch ──
+  sel.onchange = async () => {
+    if (stream) return;
+    modelIdx = parseInt(sel.value);
+    await loadModel(MODELS[modelIdx]);
+    $('sizeSlider').value = Math.round(currentModel.scale.x * 100);
+    $('sizeVal').textContent = Math.round(currentModel.scale.x * 100);
+    $('ySlider').value = 0;
+    $('yVal').textContent = '0';
+    setStatus('준비 완료');
+  };
+
+  // ── size slider ──
+  $('sizeSlider').oninput = () => {
+    if (!currentModel) return;
+    const v = $('sizeSlider').value / 100;
+    currentModel.scale.set(v);
+    $('sizeVal').textContent = $('sizeSlider').value;
+  };
+
+  // ── Y position slider ──
+  $('ySlider').oninput = () => {
+    if (!currentModel) return;
+    const val = +$('ySlider').value;
+    currentModel.position.y = app.screen.height * 0.2 + val * 4;
+    $('yVal').textContent = val;
+  };
+
+  // ── flip button ──
+  $('flipBtn').onclick = () => {
+    flipX = !flipX;
+    $('flipBtn').style.background = flipX ? '#4a6cf7' : '#555';
+  };
+
+  // ── overlay toggle ──
+  $('overlayBtn').onclick = () => {
+    overlayShow = !overlayShow;
+    $('overlayBtn').style.background = overlayShow ? '#4a6cf7' : '#555';
+  };
+  // ── VTS ──
+  $('vtsBtn').onclick = () => {
+    vtsConnect();
+    $('vtsBtn').textContent = vtsAuthed ? 'VTS ✅' : 'VTS...';
+  };
+
+  // ── face toggle ──
+  $('faceToggle').onclick = () => {
+    faceOn = !faceOn;
+    $('faceToggle').style.background = faceOn ? '#4a6cf7' : '#555';
+  };
+  // ── hand toggle ──
+  $('handToggle').onclick = () => {
+    handOn = !handOn;
+    $('handToggle').style.background = handOn ? '#4a6cf7' : '#555';
+  };
+  // ── camera toggle ──
+  const SMOOTH = 0.25;
+  const boxToggle = $('boxToggle');
+  const camBox = $('camBox');
+
+  boxToggle.onclick = () => {
+    boxVisible = !boxVisible;
+    camBox.style.display = boxVisible ? 'block' : 'none';
+    boxToggle.textContent = boxVisible ? '박스 OFF' : '박스 ON';
+  };
+
+  camBtn.onclick = async () => {
+    if (stream) {
+      stream.getTracks().forEach(t=>t.stop());
+      stream = null;
+      camBox.style.display = 'none';
+      boxToggle.style.display = 'none';
+      camBtn.textContent = 'CAM ON';
+      headX = 0; headY = 0;
+      setStatus('준비 완료');
+      return;
+    }
+    if (!navigator.mediaDevices) return setError('HTTPS 필요 (cloudflare tunnel 사용)');
+    setStatus('카메라 권한 요청...');
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { width:640, height:480, facingMode:'user' }
+      });
+      const v = $('cam');
+      v.srcObject = stream;
+      await v.play();
+      camBox.style.display = 'block';
+      boxToggle.style.display = 'block';
+      boxVisible = true;
+      boxToggle.textContent = '박스 OFF';
+      camBtn.textContent = 'CAM OFF';
+      setStatus('트래킹 시작...');
+
+      const ov = $('ov'), oc = ov.getContext('2d', {willReadFrequently: false});
+      const CW = 640, CH = 480;
+      ov.width = CW; ov.height = CH;
+      // auto-calibration: track hand size min/max for adaptive normalization
+      let calHandMin = 0.08, calHandMax = 0.35;
+      let calSamples = 0, calOpen = 0;
+      let tracking = false, frameCount = 0, lastHandResult = null, smoothHand = [], handChanged = false;
+      let armDecayL = { open:0, wx:0, wy:0 }, armDecayR = { open:0, wx:0, wy:0 };
+      let lastFaceLM = null;
+      const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+      let tabHidden = false;
+      document.addEventListener('visibilitychange', () => { tabHidden = document.hidden; });
+
+      function loop() {
+        try {
+          if (tabHidden) { requestAnimationFrame(loop); return; }
+          if (v.readyState >= 2) {
+            // always show video feed
+            oc.clearRect(0, 0, CW, CH);
+            oc.drawImage(v, 0, 0, CW, CH);
+            // ── face (every 6 frames, ~10fps) ──
+            let faceResult = null;
+            if (faceOn) {
+              const fr = faceLandmarker.detectForVideo(v, performance.now() + 0.1);
+              if (fr.faceLandmarks && fr.faceLandmarks.length > 0) {
+                faceResult = fr;
+                lastFaceLM = fr.faceLandmarks[0];
+              }
+            }
+            // draw face overlay from cache every frame
+            if (faceOn && overlayShow && lastFaceLM) {
+              const lm = lastFaceLM;
+              oc.fillStyle = 'rgba(0,0,0,0.25)';
+              oc.fillRect(0, 0, CW, CH);
+              oc.fillStyle = '#0f0';
+              for (let i = 0; i < lm.length; i++) { oc.beginPath(); oc.arc(lm[i].x*CW, lm[i].y*CH, 2, 0, Math.PI*2); oc.fill(); }
+            }
+            // ── hand: separate timestamp from face ──
+            if (handOn) {
+              const hr = handLandmarker.detectForVideo(v, performance.now());
+              const newVal = (hr && hr.landmarks && hr.landmarks.length > 0 &&
+                hr.handednesses?.length > 0 &&
+                hr.handednesses.some((h, i) => h[0]?.score > 0.6)) ? hr : null;
+              if (newVal) {
+                handLostFrames = 0;
+                lastHandResult = newVal;
+                if (smoothHand.length !== newVal.landmarks.length) {
+                  smoothHand = newVal.landmarks.map(hl => hl.map(l => ({x: l.x, y: l.y})));
+                }
+                handChanged = true;
+              } else {
+                lastHandResult = null;
+                smoothHand = [];
+              }
+            } else {
+              lastHandResult = null;
+              smoothHand = [];
+            }
+            frameCount++;
+            // lerp smoothHand toward lastHandResult every frame
+            if (lastHandResult) {
+              for (let h = 0; h < lastHandResult.landmarks.length; h++) {
+                const raw = lastHandResult.landmarks[h];
+                // ensure smoothHand[h] exists
+                if (!smoothHand[h]) { smoothHand[h] = raw.map(l => ({x:l.x,y:l.y})); continue; }
+                for (let i = 0; i < raw.length; i++) {
+                  if (!smoothHand[h][i]) { smoothHand[h][i] = {x:raw[i].x,y:raw[i].y}; continue; }
+                  smoothHand[h][i].x += (raw[i].x - smoothHand[h][i].x) * 0.85;
+                  smoothHand[h][i].y += (raw[i].y - smoothHand[h][i].y) * 0.85;
+                }
+              }
+            }
+            handData = [];
+            const HCONN = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17]];
+            // compute face bounding box to reject hands inside face area
+            let faceBox = null;
+            const faceLm = faceResult?.faceLandmarks?.[0] || lastFaceLM;
+            if (faceLm) {
+              const lm = faceLm;
+              let minX=1, minY=1, maxX=0, maxY=0;
+              for (let i=0;i<lm.length;i++) {
+                if (lm[i].x<minX) minX=lm[i].x;
+                if (lm[i].y<minY) minY=lm[i].y;
+                if (lm[i].x>maxX) maxX=lm[i].x;
+                if (lm[i].y>maxY) maxY=lm[i].y;
+              }
+              const padX = (maxX-minX)*0.15, padY = (maxY-minY)*0.15;
+              faceBox = {x1:minX-padX, y1:minY-padY, x2:maxX+padX, y2:maxY+padY};
+            }
+            if (smoothHand.length > 0) {
+              for (let h = 0; h < smoothHand.length; h++) {
+                const hl = smoothHand[h];
+                // reject if wrist (landmark 0) is inside face box
+                if (faceBox && hl[0].x >= faceBox.x1 && hl[0].x <= faceBox.x2 &&
+                    hl[0].y >= faceBox.y1 && hl[0].y <= faceBox.y2) continue;
+                const wlm = lastHandResult?.worldLandmarks?.[h];
+                handData.push({
+                  landmarks: hl,
+                  worldLandmarks: wlm || null,
+                  handedness: lastHandResult?.handednesses?.[h]?.[0]?.categoryName || '',
+                  score: lastHandResult?.handednesses?.[h]?.[0]?.score || 0.7
+                });
+              }
+            }
+            // draw hand overlay — only if handData has content
+            if (overlayShow && handData.length > 0) {
+              for (let h = 0; h < handData.length; h++) {
+                const hl = handData[h].landmarks;
+                const col = h === 0 ? '255,255,0' : '0,255,255';
+                oc.strokeStyle = `rgba(${col},0.4)`; oc.lineWidth = 2; oc.beginPath();
+                for (const [a,b] of HCONN) { oc.moveTo(hl[a].x*CW, hl[a].y*CH); oc.lineTo(hl[b].x*CW, hl[b].y*CH); }
+                oc.stroke();
+                oc.fillStyle = `rgb(${col})`;
+                for (let i = 0; i < hl.length; i++) { oc.beginPath(); oc.arc(hl[i].x*CW, hl[i].y*CH, 3, 0, Math.PI*2); oc.fill(); }
+              }
+            }
+            // ── finger curl helper (3D wrist-to-tip ratio, rotation-invariant) ──
+            function fingerCurlAngle(worldHl, fi) {
+              // fi=0 thumb..4 pinky. Uses 3D worldLandmarks (z = perpendicular to palm)
+              if (!worldHl) return 0.5;
+              const tips = [4,8,12,16,20], mcps = [2,5,9,13,17];
+              const tip = worldHl[tips[fi]], mcp = worldHl[mcps[fi]], w = worldHl[0], midMcp = worldHl[9];
+              if (!tip || !mcp || !w || !midMcp) return 0.5;
+              // 3D distance from fingertip to MCP
+              const td = Math.hypot(tip.x-mcp.x, tip.y-mcp.y, tip.z-mcp.z);
+              // fixed hand size: wrist to middle MCP (landmark 9) — same for all fingers
+              const hs = Math.hypot(midMcp.x-w.x, midMcp.y-w.y, midMcp.z-w.z) || 0.001;
+              const ratio = td / hs;
+              // per-finger normalization: each finger has different length/ratio range
+              const offsets = [0.15, 0.3, 0.3, 0.25, 0.15];
+              const ranges  = [0.3,  0.5, 0.5, 0.45, 0.4];
+              let curl = 1 - Math.min(1, Math.max(0, (ratio - offsets[fi]) / ranges[fi]));
+              if (fi === 0) curl = Math.min(1, curl * 2.5); // thumb gain
+              return Math.min(1, Math.max(0, curl));
+            }
+            // ── arm from hand (with auto-calibration + decay) ──
+            if (handData.length > 0) {
+              armL.open = 0; armR.open = 0; armL.wx = 0; armR.wx = 0; armL.wy = 0; armR.wy = 0;
+              for (const hd of handData) {
+                const hl = hd.landmarks, w = hl[0], wlm = hd.worldLandmarks;
+              // hand open: avg distance wrist→5 fingertips (3D world = rotation invariant)
+              let d = 0;
+              if (wlm) {
+                for (const i of [4,8,12,16,20]) d += Math.hypot(wlm[i].x-wlm[0].x, wlm[i].y-wlm[0].y, wlm[i].z-wlm[0].z);
+              } else {
+                for (const i of [4,8,12,16,20]) d += Math.hypot(hl[i].x-w.x, hl[i].y-w.y);
+              }
+              d = d / 5; // 0~~0.1
+              // auto-calibrate: expand range as user opens/closes hand
+              calSamples++;
+              if (d < calHandMin) calHandMin = d;
+              if (d > calHandMax) calHandMax = d;
+              // converge slowly after enough samples
+              if (calSamples > 30) {
+                calHandMin *= 0.995; calHandMax *= 1.005; // slow release
+              }
+              const range = Math.max(0.02, calHandMax - calHandMin);
+              const open = Math.min(1, Math.max(0, (d - calHandMin) / range));
+              const wx = (w.x - 0.5) * 2;  // -1..1
+              const wy = (0.5 - w.y) * 2;  // -1..1 up=+1
+              // x<0.5: left of frame = model's right arm (our left)
+              const isRight = hdIsRight(hd, flipX);
+              if (isRight) { armR.open = open; armR.wx = wx; armR.wy = wy; }
+              else { armL.open = open; armL.wx = wx; armL.wy = wy; }
+            }
+            } else {
+              // hand lost — decay toward 0
+              const decay = 0.92;
+              for (const arm of [armL, armR]) {
+                arm.open *= decay; arm.wx *= decay; arm.wy *= decay;
+                if (Math.abs(arm.open) < 0.001) arm.open = 0;
+                if (Math.abs(arm.wx) < 0.001) arm.wx = 0;
+                if (Math.abs(arm.wy) < 0.001) arm.wy = 0;
+              }
+            }
+            // ── hand tracking mode toggle (persist between frames) ──
+            const pi15 = currentModel?._paramIdx?.Param15;
+            const pi21 = currentModel?._paramIdx?.Param21;
+            let handTrackR = 0, handTrackL = 0;
+            for (const hd of handData) {
+              const isRight = hdIsRight(hd, flipX);
+              if (isRight) handTrackR = 1; else handTrackL = 1;
+            }
+            if (pi15 >= 0) currentModel.internalModel.coreModel._model.parameters.values[pi15] = handTrackR * 30;
+            if (pi21 >= 0) currentModel.internalModel.coreModel._model.parameters.values[pi21] = handTrackL * 30;
+            // ── helper: isRight with side-view fallback ──
+            function hdIsRight(hd, flip) {
+              const w = hd.landmarks[0];
+              // always use x-position - handedness unreliable from pinky side
+              return (w.x > 0.5) === flip;
+            }
+            function hdPrefix(hd, flip) {
+              const w = hd.landmarks[0];
+              // finger prefix opposite: hand position vs arm assignment
+              return (w.x > 0.5) !== flip ? 'HandRight' : 'HandLeft';
+            }
+            // ── VTS inject ──
+            if (vtsAuthed && handData.length > 0) {
+              const vtsParams = [];
+              for (const hd of handData) {
+                const hl = hd.landmarks, w = hl[0];
+                const isRight = hdIsRight(hd, flipX);
+                const side = isRight ? 'Right' : 'Left';
+                const wx = (w.x - 0.5) * 2, wy = (0.5 - w.y) * 2;
+                const open = isRight ? armR.open : armL.open;
+                vtsParams.push({id: 'Hand'+side+'AngleZ', value: wx * 30});
+                vtsParams.push({id: 'Hand'+side+'AngleX', value: wy * 30});
+                vtsParams.push({id: side==='Right'?'handRightOpen':'handLeftOpen', value: open * 60 - 30});
+                vtsParams.push({id: 'Hand'+side+'PositionX', value: wx * 0.5});
+                vtsParams.push({id: 'Hand'+side+'PositionY', value: wy * 0.5});
+                // confidence blend: side view → use arm open as fallback
+                const blend = Math.min(1, Math.max(0, (hd.score - 0.4) / 0.3));
+                for (let fi = 0; fi < 5; fi++) {
+                  const fn = ['_1_Thumb','_2_Index','_3_Middle','_4_Ring','_5_Pinky'][fi];
+                  const flex = fingerCurlAngle(hd.worldLandmarks, fi);
+                  const fingerVal = flex * 60 - 30;
+                  const fallbackVal = open * 60 - 30;
+                  vtsParams.push({id: 'Hand'+side+'Finger'+fn, value: fingerVal * blend + fallbackVal * (1 - blend)});
+                }
+              }
+              vtsInject(vtsParams);
+            }
+            // ── finger tracking ──
+            const pi = currentModel?._paramIdx;
+            if (pi) {
+              const pv = currentModel.internalModel.coreModel._model.parameters.values;
+              const fingerTips = [4, 8, 12, 16, 20];
+              const fingerNames = ['_1_Thumb', '_2_Index', '_3_Middle', '_4_Ring', '_5_Pinky'];
+              for (const hd of handData) {
+                const hl = hd.landmarks, w = hl[0];
+                const prefix = hdPrefix(hd, flipX);
+                const isRight = hdIsRight(hd, flipX);
+                const open = isRight ? armR.open : armL.open;
+                // confidence blend: side view → use arm open as fallback
+                const blend = Math.min(1, Math.max(0, (hd.score - 0.4) / 0.3));
+                for (let fi = 0; fi < 5; fi++) {
+                  const fid = prefix + 'Finger' + fingerNames[fi];
+                  if (pi[fid] >= 0) {
+                    const flex = fingerCurlAngle(hd.worldLandmarks, fi);
+                    pv[pi[fid]] = (flex * 60 - 30) * blend + (open * 60 - 30) * (1 - blend);
+                  }
+                }
+              }
+            }
+            // ── wrist rotation from hand roll ──
+            if (pi && pi.Param18 >= 0) {
+              const pv = currentModel.internalModel.coreModel._model.parameters.values;
+              for (const hd of handData) {
+                if (!hdIsRight(hd, flipX)) continue;
+                const raw = lastHandResult?.landmarks?.[handData.indexOf(hd)];
+                if (!raw) continue;
+                const roll = Math.atan2(raw[17].y - raw[5].y, raw[17].x - raw[5].x);
+                pv[pi.Param18] = roll * 20;
+              }
+            }
+            // ── universal hand-to-arm mapping (Huohuo Chinese etc) ──
+            if (pi) {
+              const pv = currentModel.internalModel.coreModel._model.parameters.values;
+              for (const hd of handData) {
+                const hl = hd.landmarks, w = hl[0];
+                const isRight = hdIsRight(hd, flipX);
+                const wx = (w.x - 0.5) * 2;
+                const wy = (0.5 - w.y) * 2;
+                // Huohuo/Fern: Param95=手, Param124=抬手, Param7/8/9=肩膀XYZ, Param113/114=手旋转, Param112=胳膊旋转, Fern: Param29/30/31=手臂1~3
+                if (pi['Param95'] >= 0) pv[pi['Param95']] = (isRight ? armR.open : armL.open) * 30;
+                if (pi['Param124'] >= 0) pv[pi['Param124']] = Math.max(0, (0.5 - wy)) * 30;
+                if (pi['Param91'] >= 0) pv[pi['Param91']] = flipX ? 30 : 0;
+                if (pi['Param7'] >= 0) pv[pi['Param7']] = wx * 15;
+                if (pi['Param8'] >= 0) pv[pi['Param8']] = wy * 15;
+                if (pi['Param113'] >= 0 && !isRight) pv[pi['Param113']] = wx * 30;
+                if (pi['Param114'] >= 0 && isRight) pv[pi['Param114']] = wx * 30;
+                if (pi['Param112'] >= 0) pv[pi['Param112']] = (isRight ? 1:-1) * wx * 20;
+                if (pi['Param29'] >= 0) pv[pi['Param29']] = (isRight ? 1:-1) * wx * 20;
+                if (pi['Param30'] >= 0) pv[pi['Param30']] = wy * 20;
+                if (pi['Param31'] >= 0) pv[pi['Param31']] = (isRight ? armR.open : armL.open) * 30;
+              }
+            }
+            // ── face tracking data ──
+            let handsOff = 1;
+            if (handData.length > 0) {
+              for (const hd of handData) {
+                const w = hd.landmarks[0];
+                if (w.x > 0.2 && w.x < 0.8 && w.y > 0.05 && w.y < 0.55) { handsOff = 0; break; }
+              }
+            }
+            if (faceResult && faceResult.faceLandmarks && faceResult.faceLandmarks.length > 0) {
+              const lm = faceResult.faceLandmarks[0];
+
+              if (!tracking) { tracking = true; setStatus('트래킹 중'); }
+
+              // nose=1, left ear=234, right ear=454, chin=152, brow=10, noseBridge=168
+              const nose = lm[1], lEar = lm[234], rEar = lm[454];
+              const chin = lm[152], brow = lm[10], noseBridge = lm[168];
+
+              // yaw: nose position relative to ears
+              const faceW = Math.max(0.05, rEar.x - lEar.x);
+              const yawRaw = ((nose.x - (lEar.x + rEar.x)/2) / faceW) * 2;
+
+              // pitch: nose position relative to noseBridge (stable reference)
+              const faceH = Math.max(0.05, chin.y - noseBridge.y);
+              const pitchRaw = (0.32 - (nose.y - noseBridge.y) / faceH) * 6;
+
+              // clamp
+              const yawClamp = Math.max(-1, Math.min(1, yawRaw));
+              const pitchClamp = Math.max(-1, Math.min(1, pitchRaw));
+
+              // smooth
+              const smoothFactor = SMOOTH * (handsOff > 0 ? 1 : 0.1);
+              rawX += (yawClamp - rawX) * smoothFactor;
+              rawY += (pitchClamp - rawY) * smoothFactor;
+
+              headX = flipX ? -rawX : rawX;
+              headY = rawY;
+
+              // ── expression tracking ──
+              const mouthDist = Math.abs(lm[13].y - lm[14].y);
+              const mOpen = Math.min(1, Math.max(0, (mouthDist / faceH - 0.025) * 30));
+              mouthOpen = mOpen < 0.1 ? 0 : mOpen;
+
+              const lEyeH = Math.abs(lm[159].y - lm[145].y) / faceH * 10;
+              const rEyeH = Math.abs(lm[386].y - lm[374].y) / faceH * 10;
+              eyeLOpen = Math.min(1, Math.max(0.05, lEyeH));
+              eyeROpen = Math.min(1, Math.max(0.05, rEyeH));
+
+              setStatus('X:'+Math.round(rawX*100)+' Y:'+Math.round(rawY*100)+' 손:'+handData.length);
+
+            } else if (handData.length > 0 && !tracking) {
+              tracking = true;
+              setStatus('트래킹 중');
+
+            } else if (faceResult && tracking) {
+              tracking = false;
+              setStatus('얼굴 감지 안 됨');
+            }
+          }
+        } catch(e) {}
+        requestAnimationFrame(loop);
+      }
+      loop();
+    } catch(err) {
+      setError('카메라: '+err.message);
+    }
+  };
+}
+
+window.addEventListener('load', () => {
+  init().catch(err => {
+    setError(err.message+'\n'+err.stack);
+  });
+});
+})();
+</script>
+</body>
+</html>
