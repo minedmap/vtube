@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { MMDLoader } from 'three/addons/animation/MMDLoader.js';
+import { MMDLoader } from 'three/addons/loaders/MMDLoader.js';
 import { MMDPhysics } from 'three/addons/animation/MMDPhysics.js';
 import { CCDIKSolver } from 'three/addons/animation/CCDIKSolver.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';

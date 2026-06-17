@@ -116,10 +116,19 @@
 
   // ── RVC button ──
   const rvcBtn = document.getElementById('rvcBtn');
+  const rvcSetBtn = document.getElementById('rvcSetBtn');
+  const rvcSettingsPanel = document.getElementById('rvcSettings');
   if (rvcBtn && !rvcBtn._bound) {
     rvcBtn._bound = true;
     rvcBtn.onclick = function() {
       if (window.toggleRVC) window.toggleRVC();
+    };
+  }
+  if (rvcSetBtn && !rvcSetBtn._bound) {
+    rvcSetBtn._bound = true;
+    rvcSetBtn.onclick = function() {
+      const p = document.getElementById('rvcSettings');
+      if (p) p.style.display = p.style.display === 'flex' ? 'none' : 'flex';
     };
   }
 
@@ -149,10 +158,16 @@
       waveBtn.style.display = 'none';
       ngBtn.style.display = 'none';
       window._setStatus('MIC 꺼짐');
+      // hide RVC buttons
+      const _r = document.getElementById('rvcBtn');
+      const _rs = document.getElementById('rvcSetBtn');
+      if (_r) { _r.style.display = 'none'; _r.style.color = '#aaa'; }
+      if (_rs) _rs.style.display = 'none';
     } else {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        window.__audioCtx = audioCtx;
         source = audioCtx.createMediaStreamSource(stream);
         gainNode = audioCtx.createGain();
         gainNode.gain.value = parseInt(volSlider.value) / 100;
@@ -231,8 +246,10 @@
         ngBtn.style.display = ''; noiseGateOn = true; ngBtn.style.background = '#4a6cf7';
         // RVC button show
         const rvcBtn = document.getElementById('rvcBtn');
+        const rvcSetBtn2 = document.getElementById('rvcSetBtn');
         const rvcStatus = document.getElementById('rvcStatus');
         if (rvcBtn) { rvcBtn.style.display = ''; rvcBtn.style.color = '#fff'; }
+        if (rvcSetBtn2) rvcSetBtn2.style.display = '';
         if (rvcStatus) rvcStatus.style.display = '';
         window.rvcInit();
         drawWaveform();

@@ -1,25 +1,46 @@
-// RVC 서버 모드 — WebSocket으로 Python RVC 서버와 통신
-// no ONNX in browser, no 294MB download
+// RVC — WebSocket + 2s chunk accumulation
+const RVC_SR = 48000
+const CHUNK_SEC = 2
+const CHUNK_SAMPLES = RVC_SR * CHUNK_SEC // 96000
 
 let rvc = {
   ws: null,
   enabled: false,
   loading: false,
   ready: false,
-  outputBuf: new Float32Array(0),
-  outPos: 0,
-  outLen: 0,
+  accumBuf: new Float32Array(CHUNK_SAMPLES),
+  accumPos: 0,
+  pending: false,
+  outputBuf: new Float32Array(CHUNK_SAMPLES * 2),
+  outputRd: 0,
+  outputWr: 0,
+  outputMask: CHUNK_SAMPLES * 2 - 1,
   reconnectTimer: null,
-  chunkSize: 3840, // 80ms @48k
+  audioSr: RVC_SR,
+  // settings
+  settings: {
+    pitch: 0,
+    sampleLen: 3840,
+    fadeLen: 256,
+    responseThreshold: 0.01,
+    indexRate: 0.5,
+    extraTime: 0,
+    inputNR: true,
+    outputNR: true,
+  },
 }
 
-const RVC_WS_URL = (location.protocol === 'https:' ? 'wss://' : 'ws://') +
-  location.host + '/ws/rvc'
+const RVC_WS_URL = 'ws://' + location.hostname + '/ws/rvc'
 
 async function rvcInit() {
   if (rvc.loading || rvc.ready) return
   rvc.loading = true
   updateRvcStatus('연결중...')
+
+  // Detect actual audio sample rate
+  if (window.__audioCtx) {
+    rvc.audioSr = window.__audioCtx.sampleRate || RVC_SR
+  }
 
   try {
     rvc.ws = new WebSocket(RVC_WS_URL)
@@ -28,16 +49,29 @@ async function rvcInit() {
     rvc.ws.onopen = () => {
       rvc.ready = true
       rvc.loading = false
+      rvc.ws.send(JSON.stringify({ type: 'config', ...rvc.settings }))
+      // Flush accumulated buffer if any
+      if (rvc.accumPos >= CHUNK_SAMPLES) {
+        rvc.pending = true
+        rvc.ws.send(rvc.accumBuf.slice().buffer)
+        rvc.accumPos = 0
+      }
       updateRvcStatus('RVC ✅')
-      console.log('[RVC] ws connected')
+      console.log('[RVC] connected')
     }
 
     rvc.ws.onmessage = (e) => {
-      // Received processed audio
+      if (typeof e.data === 'string') {
+        console.log('[RVC] server:', e.data)
+        return
+      }
       const data = new Float32Array(e.data)
-      rvc.outputBuf = data
-      rvc.outLen = data.length
-      rvc.outPos = 0
+      // Write to ring buffer
+      for (let i = 0; i < data.length; i++) {
+        rvc.outputBuf[rvc.outputWr] = data[i]
+        rvc.outputWr = (rvc.outputWr + 1) & rvc.outputMask
+      }
+      rvc.pending = false
     }
 
     rvc.ws.onerror = (e) => {
@@ -63,43 +97,70 @@ async function rvcInit() {
   }
 }
 
-// Send audio chunk to server
-function rvcFeedChunk(chunk48k) {
-  if (!rvc.enabled || !rvc.ready || !rvc.ws || rvc.ws.readyState !== WebSocket.OPEN) return
-  // WebSocket message is self-framed — send copy of float32 bytes
-  rvc.ws.send(chunk48k.slice().buffer)
+function rvcFeedChunk(chunk) {
+  if (!rvc.enabled || !rvc.ws) return
+
+  // Resample to 48kHz if needed
+  if (rvc.audioSr !== RVC_SR) {
+    const ratio = rvc.audioSr / RVC_SR
+    const outLen = Math.round(chunk.length * ratio)
+    const r = new Float32Array(outLen)
+    for (let i = 0; i < outLen; i++) {
+      const si = i / ratio
+      const i0 = Math.floor(si), i1 = Math.min(i0+1, chunk.length-1)
+      r[i] = chunk[i0] + (chunk[i1]-chunk[i0]) * (si-i0)
+    }
+    chunk = r
+  }
+
+  // Accumulate even before ready (connection in progress)
+  const copyLen = Math.min(chunk.length, CHUNK_SAMPLES - rvc.accumPos)
+  rvc.accumBuf.set(chunk.subarray(0, copyLen), rvc.accumPos)
+  rvc.accumPos += copyLen
+
+  // Send full chunk + no pending + ws open
+  if (rvc.accumPos >= CHUNK_SAMPLES) {
+    if (!rvc.pending && rvc.ws.readyState === WebSocket.OPEN) {
+      rvc.pending = true
+      rvc.ws.send(rvc.accumBuf.slice().buffer)
+      rvc.accumPos = 0
+    } else {
+      // Can't send yet — reset to avoid stuck buffer
+      rvc.accumPos = 0
+    }
+  }
 }
 
-// Read processed audio (called from ScriptProcessor)
 function rvcReadOutput(outBuf) {
-  if (!rvc.enabled || !rvc.ready || rvc.outLen === 0) return false
-  const copyLen = Math.min(outBuf.length, rvc.outLen - rvc.outPos)
+  if (!rvc.enabled || !rvc.ready || rvc.outputRd === rvc.outputWr) return false
+  const avail = (rvc.outputWr - rvc.outputRd) & rvc.outputMask
+  const copyLen = Math.min(outBuf.length, avail)
   if (copyLen <= 0) return false
-  for (let i = 0; i < copyLen; i++)
-    outBuf[i] = rvc.outputBuf[rvc.outPos + i]
-  rvc.outPos += copyLen
+  for (let i = 0; i < copyLen; i++) {
+    outBuf[i] = rvc.outputBuf[rvc.outputRd]
+    rvc.outputRd = (rvc.outputRd + 1) & rvc.outputMask
+  }
   return true
 }
 
-// Toggle RVC on/off
 async function toggleRVC() {
   if (!rvc.ready && !rvc.loading) await rvcInit()
-
   rvc.enabled = !rvc.enabled
   window._rvcMode = rvc.enabled
-
   const btn = document.getElementById('rvcBtn')
   if (btn) {
     btn.textContent = rvc.enabled ? 'RVC' : '피치'
     btn.style.background = rvc.enabled ? '#4a6cf7' : '#555'
   }
-
   if (rvc.enabled && !rvc.ready) {
-    // Wait a bit for connection
     setTimeout(() => {
       if (!rvc.ready) updateRvcStatus('RVC 연결실패')
     }, 5000)
   }
+  const panel = document.getElementById('rvcSettings')
+  if (panel) panel.style.display = rvc.enabled && rvc.ready ? 'flex' : 'none'
+  // Reset accum on toggle
+  rvc.accumPos = 0
 }
 
 function updateRvcStatus(msg) {
@@ -107,7 +168,14 @@ function updateRvcStatus(msg) {
   if (el) el.textContent = msg
 }
 
+function rvcSendSetting(key, val) {
+  rvc.settings[key] = val
+  if (rvc.ws && rvc.ws.readyState === WebSocket.OPEN)
+    rvc.ws.send(JSON.stringify({ type: 'config', ...rvc.settings }))
+}
+
 window.rvcInit = rvcInit
 window.toggleRVC = toggleRVC
 window.rvcFeedChunk = rvcFeedChunk
 window.rvcReadOutput = rvcReadOutput
+window.rvcSendSetting = rvcSendSetting
