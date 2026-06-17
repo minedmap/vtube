@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MMD 업로드</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0f;color:#ddd;font:14px/1.6 sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh}
+.card{background:#1a1a2e;padding:32px;border-radius:12px;max-width:480px;width:100%;margin:16px}
+h1{color:#4a6cf7;font-size:18px;margin-bottom:12px}
+p{color:#888;font-size:13px;margin-bottom:20px}
+.drop-zone{border:2px dashed #333;border-radius:8px;padding:40px 20px;text-align:center;cursor:pointer;transition:border-color .2s}
+.drop-zone:hover,.drop-zone.dragover{border-color:#4a6cf7}
+.drop-zone input{display:none}
+.drop-zone p{color:#666;font-size:13px;margin:0}
+.drop-zone .icon{font-size:32px;margin-bottom:8px;display:block}
+#status{margin-top:16px;padding:10px 14px;border-radius:6px;font-size:13px;display:none}
+#status.ok{display:block;background:#0a2a0a;color:#4c4}
+#status.err{display:block;background:#2a0a0a;color:#f44}
+#modelList{margin-top:20px}
+#modelList h3{color:#888;font-size:12px;margin-bottom:8px}
+#modelList li{color:#aaa;font-size:13px;padding:4px 0;list-style:none;display:flex;justify-content:space-between}
+#modelList li a{color:#4a6cf7;text-decoration:none;font-size:12px}
+#modelList li a:hover{text-decoration:underline}
+.btn{padding:8px 20px;background:#4a6cf7;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;margin-top:12px}
+.btn:hover{background:#5a7cff}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>📦 MMD 모델 업로드</h1>
+  <p>.zip (자동 추출) 또는 .pmx / .pmd / .vmd 선택. 업로드 후 VTube 페이지에서 <b>3D</b> 버튼 클릭</p>
+  <div class="drop-zone" id="dropZone">
+    <span class="icon">📁</span>
+    <p>클릭 또는 드래그하여 파일 선택</p>
+    <input type="file" id="fileInput" accept=".zip,.pmx,.pmd,.vmd">
+  </div>
+  <div id="status"></div>
+  <button class="btn" id="loadBtn" style="display:none">🔄 3D 모드 열기</button>
+  <div id="modelList">
+    <h3>📋 서버에 있는 모델</h3>
+    <ul id="fileList"><li style="color:#555">로딩 중...</li></ul>
+  </div>
+</div>
+<script>
+const drop = $('dropZone'), fi = $('fileInput'), st = $('status'), lb = $('loadBtn');
+function $(id){return document.getElementById(id)}
+
+// refresh model list
+async function refreshList() {
+  const ul = $('fileList');
+  try {
+    const r = await fetch('/models/mmd/list.json');
+    const list = await r.json();
+    if (list.length === 0) { ul.innerHTML = '<li style="color:#555">모델 없음</li>'; return; }
+    ul.innerHTML = list.map(f => `<li><span>${f}</span> <a href="/models/mmd/${f}" download>⬇</a></li>`).join('');
+  } catch(e) { ul.innerHTML = '<li style="color:#f44">불러오기 실패</li>'; }
+}
+refreshList();
+
+// drag-drop
+drop.onclick = () => fi.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('dragover'); };
+drop.ondragleave = () => drop.classList.remove('dragover');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('dragover'); fi.files = e.dataTransfer.files; if(fi.files[0]) upload(fi.files[0]); };
+fi.onchange = () => { if(fi.files[0]) upload(fi.files[0]); };
+
+async function upload(file) {
+  if (!file.name.match(/\\.(pmx|pmd|vmd|zip)$/i)) { show('err', '.zip / .pmx / .pmd / .vmd 파일만 가능'); return; }
+  const form = new FormData();
+  form.append('file', file);
+  form.append('filename', file.name);
+  show('ok', '업로드 중... ' + file.name);
+  try {
+    const r = await fetch('/upload-mmd', { method: 'POST', body: form });
+    const j = await r.json();
+    if (j.ok) {
+      show('ok', '✅ 업로드 완료: ' + file.name);
+      fi.value = '';
+      refreshList();
+      lb.style.display = '';
+      lb.onclick = () => { window.location.href = '/'; };
+    } else { show('err', '❌ ' + j.error); }
+  } catch(e) { show('err', '❌ 업로드 실패'); }
+}
+
+function show(cls, msg) { st.className = cls; st.textContent = msg; }
+</script>
+</body>
+</html>

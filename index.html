@@ -29,12 +29,14 @@ canvas{width:100%!important;height:100%!important;display:block}
 <body>
 <div id="wrap">
   <canvas id="c"></canvas>
+  <canvas id="c3d" style="display:none"></canvas>
   <div id="status">로딩 중...</div>
   <div id="error"></div>
   <button id="camBtn">CAM ON</button>
-  <select id="modelSel" style="position:absolute;top:10px;left:70px;z-index:20;padding:4px 8px;font:12px sans-serif;background:#333;color:#fff;border:none;border-radius:6px;cursor:pointer;outline:none"></select>
-  <button id="vtsBtn" style="position:absolute;top:10px;left:150px;z-index:20;padding:6px 12px;font:12px sans-serif;background:#555;color:#aaa;border:none;border-radius:6px;cursor:pointer;user-select:none">VTS</button>
-  <button id="boxToggle" style="display:none;position:absolute;top:10px;left:230px;z-index:20;padding:6px 12px;font:12px sans-serif;background:#333;color:#fff;border:none;border-radius:6px;cursor:pointer;user-select:none">박스 OFF</button>
+  <button id="modeBtn" style="position:absolute;top:10px;left:70px;z-index:20;padding:6px 12px;font:12px sans-serif;background:#555;color:#aaa;border:none;border-radius:6px;cursor:pointer;user-select:none">3D</button>
+  <select id="modelSel" style="position:absolute;top:10px;left:135px;z-index:20;padding:4px 8px;font:12px sans-serif;background:#333;color:#fff;border:none;border-radius:6px;cursor:pointer;outline:none"></select>
+  <button id="vtsBtn" style="position:absolute;top:10px;left:215px;z-index:20;padding:6px 12px;font:12px sans-serif;background:#555;color:#aaa;border:none;border-radius:6px;cursor:pointer;user-select:none">VTS</button>
+  <button id="boxToggle" style="display:none;position:absolute;top:10px;left:290px;z-index:20;padding:6px 12px;font:12px sans-serif;background:#333;color:#fff;border:none;border-radius:6px;cursor:pointer;user-select:none">박스 OFF</button>
   <div id="ctrl" style="position:absolute;bottom:60px;left:50%;transform:translateX(-50%);z-index:20;display:flex;gap:10px;align-items:center;background:rgba(0,0,0,0.5);padding:6px 14px;border-radius:8px">
     <span style="color:#888;font:11px sans-serif">크기</span>
     <input type="range" id="sizeSlider" min="2" max="80" value="18" style="width:100px;height:4px;accent-color:#4a6cf7">
@@ -49,12 +51,128 @@ canvas{width:100%!important;height:100%!important;display:block}
   </div>
   <div id="camBox"><video id="cam" autoplay playsinline></video><canvas id="ov"></canvas></div>
 </div>
-<script src="/vtube/lib/pixi.min.js"></script>
+<script src="/lib/pixi.min.js"></script>
 <script>
 window.process = {env:{NODE_ENV:'production'},argv:[],on:function(){},versions:{node:''}};
 </script>
-<script src="/vtube/lib/live2dcubismcore.min.js"></script>
-<script src="/vtube/lib/cubism4.min.js"></script>
+<script src="/lib/live2dcubismcore.min.js"></script>
+<script src="/lib/cubism4.min.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { MMDLoader } from 'three/addons/animation/MMDLoader.js';
+import { MMDPhysics } from 'three/addons/animation/MMDPhysics.js';
+import { CCDIKSolver } from 'three/addons/animation/CCDIKSolver.js';
+
+let mmdRenderer, mmdScene, mmdCamera, mmdModel, mmdMixer, mmdPhysics, mmdSolver;
+let mmdAnimId = null;
+
+export function initMMD(canvas) {
+  mmdRenderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  mmdRenderer.setPixelRatio(devicePixelRatio || 1);
+  mmdRenderer.setClearColor(0x000000, 0);
+  mmdRenderer.shadowMap.enabled = false;
+  mmdRenderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  mmdScene = new THREE.Scene();
+  mmdScene.background = null;
+
+  // lighting
+  const amb = new THREE.AmbientLight(0xffffff, 0.6);
+  mmdScene.add(amb);
+  const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+  dir.position.set(1, 1, 1);
+  mmdScene.add(dir);
+  const rim = new THREE.DirectionalLight(0x88aaff, 0.4);
+  rim.position.set(-1, 0.5, 1);
+  mmdScene.add(rim);
+
+  mmdCamera = new THREE.PerspectiveCamera(35, 1, 1, 100);
+  mmdCamera.position.set(0, 10, 28);
+  mmdCamera.lookAt(0, 10, 0);
+}
+
+export function loadMMDModel(url) {
+  if (mmdModel) {
+    mmdScene.remove(mmdModel);
+    if (mmdPhysics) mmdPhysics.dispose();
+    mmdModel = null; mmdPhysics = null; mmdSolver = null; mmdMixer = null;
+  }
+  const loader = new MMDLoader();
+  loader.load(url, (result) => {
+    mmdModel = result.mesh;
+    const anim = result.animation || null;
+    mmdModel.position.set(0, 5, 0);
+    mmdModel.scale.set(1, 1, 1);
+    mmdScene.add(mmdModel);
+
+    if (anim) {
+      mmdMixer = new THREE.AnimationMixer(mmdModel);
+      mmdMixer.clipAction(anim).play();
+    }
+
+    mmdSolver = new CCDIKSolver(mmdModel, result.ikBones);
+    mmdPhysics = new MMDPhysics(mmdModel, { unitStep: true });
+  }, undefined, (err) => { console.error('MMD load error:', err); });
+}
+
+function mmdLoop(width, height) {
+  if (!mmdRenderer || !mmdModel) return;
+  mmdRenderer.setSize(width, height, false);
+
+  // apply face tracking
+  if (mmdModel && window.__mmdFace) {
+    const f = window.__mmdFace;
+    const bones = mmdModel.skeleton?.bones;
+    if (bones) {
+      // head bone
+      const headBone = bones.find(b => b.name?.includes('頭') || b.name === 'head');
+      if (headBone) {
+        headBone.rotation.x = f.pitch || 0;
+        headBone.rotation.y = f.yaw || 0;
+      }
+    }
+  }
+
+  if (mmdSolver) mmdSolver.update();
+  if (mmdPhysics) mmdPhysics.update();
+  if (mmdMixer) mmdMixer.update(1/60);
+
+  mmdRenderer.render(mmdScene, mmdCamera);
+  mmdAnimId = requestAnimationFrame(() => mmdLoop(width, height));
+}
+
+export function resizeMMD(w, h) {
+  if (mmdRenderer) {
+    mmdRenderer.setSize(w, h, false);
+    if (mmdCamera) {
+      mmdCamera.aspect = w / h;
+      mmdCamera.updateProjectionMatrix();
+    }
+  }
+}
+
+export function destroyMMD() {
+  if (mmdAnimId) cancelAnimationFrame(mmdAnimId);
+  if (mmdPhysics) mmdPhysics.dispose();
+  if (mmdRenderer) {
+    mmdRenderer.dispose();
+    mmdRenderer = null;
+  }
+  mmdModel = null; mmdPhysics = null; mmdSolver = null; mmdMixer = null;
+  mmdScene = null; mmdCamera = null;
+}
+
+// Expose for main script
+window.__mmd = { initMMD, loadMMDModel, resizeMMD, destroyMMD, mmdLoop };
+</script>
 <script>
 (function(){
 const $ = id => document.getElementById(id);
@@ -64,18 +182,19 @@ const setError = m => { errEl.style.display='block'; errEl.textContent=m; };
 
 let app, faceLandmarker, currentModel, stream, headX = 0, headY = 0, rawX = 0, rawY = 0, trackingLoop = null, boxVisible = true;
 let mouthOpen = 0, eyeLOpen = 1, eyeROpen = 1, blinkTimer = 0, flipX = false, overlayShow = true, faceOn = true, handOn = true;
+let handwearImg = null;
 let handData = []; // list of {landmarks:[21], worldLandmarks:[21], handedness:'Left'|'Right'} per detected hand
 // arm state from hands
 let armL = { open:0, wx:0, wy:0 }, armR = { open:0, wx:0, wy:0 };
 const _arm = { armL, armR };
 window.__debug = _arm;
 const MODELS = [
-  { path: '/vtube/models/20250913/20250913.model3.json', label: 'Hand', anchor: [0.5, 0.5], scale: 0.24 },
-  { path: '/vtube/models/huohuo/huohuo.model3.json', label: 'Huohuo', anchor: [0.5, 0.45], scale: 0.2 },
+  { path: '/models/20250913/20250913.model3.json', label: 'Hand', anchor: [0.5, 0.5], scale: 0.24 },
+  { path: '/models/huohuo/huohuo.model3.json', label: 'Huohuo', anchor: [0.5, 0.45], scale: 0.2 },
 
-  { path: '/vtube/models/Mao/Mao.model3.json', label: 'Mao', anchor: [0.5, 0.35], scale: 0.18 },
-  { path: '/vtube/models/Frieren/Frieren.model3.json', label: 'Frieren', anchor: [0.5, 0.45], scale: 0.2 },
-  { path: '/vtube/models/Hiyori/Hiyori.model3.json', label: 'Hiyori', anchor: [0.5, 0.15], scale: 0.22 },
+  { path: '/models/Mao/Mao.model3.json', label: 'Mao', anchor: [0.5, 0.35], scale: 0.18 },
+  { path: '/models/Frieren/Frieren.model3.json', label: 'Frieren', anchor: [0.5, 0.45], scale: 0.2 },
+  { path: '/models/Hiyori/Hiyori.model3.json', label: 'Hiyori', anchor: [0.5, 0.15], scale: 0.22 },
   // Rice removed
 ];
 let modelIdx = 0;
@@ -258,14 +377,14 @@ async function init() {
 
   // ── load MediaPipe ──
   const mod = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.17/vision_bundle.mjs');
-  const vision = await mod.FilesetResolver.forVisionTasks('/vtube/lib/mediapipe/');
+  const vision = await mod.FilesetResolver.forVisionTasks('/lib/mediapipe/');
   faceLandmarker = await mod.FaceLandmarker.createFromOptions(vision, {
-    baseOptions: { modelAssetPath: '/vtube/lib/mediapipe/face_landmarker.task' },
+    baseOptions: { modelAssetPath: '/lib/mediapipe/face_landmarker.task' },
     runningMode: 'VIDEO', numFaces: 1,
     minFaceDetectionConfidence: 0.5, minTrackingConfidence: 0.5
   });
   handLandmarker = await mod.HandLandmarker.createFromOptions(vision, {
-    baseOptions: { modelAssetPath: '/vtube/lib/mediapipe/hand_landmarker.task' },
+    baseOptions: { modelAssetPath: '/lib/mediapipe/hand_landmarker.task' },
     runningMode: 'VIDEO', numHands: 2,
     minHandDetectionConfidence: 0.3, minTrackingConfidence: 0.3
   });
@@ -357,6 +476,85 @@ async function init() {
     $('yVal').textContent = val;
   };
 
+  // ── MMD mode toggle ──
+  let mmdMode = false;
+  const mmdCanvas = $('c3d');
+  const liveCanvas = $('c');
+  $('modeBtn').onclick = async () => {
+    mmdMode = !mmdMode;
+    $('modeBtn').style.background = mmdMode ? '#4a6cf7' : '#555';
+    $('modeBtn').textContent = mmdMode ? 'Live2D' : '3D';
+    if (mmdMode) {
+      liveCanvas.style.display = 'none';
+      mmdCanvas.style.display = 'block';
+      const wrap = $('wrap');
+      mmdCanvas.width = wrap.clientWidth;
+      mmdCanvas.height = wrap.clientHeight;
+      if (!window.__mmd._initialized) {
+        window.__mmd.initMMD(mmdCanvas);
+        window.__mmd._initialized = true;
+      }
+      window.__mmd.resizeMMD(mmdCanvas.width, mmdCanvas.height);
+      // check for MMD models
+      fetch('/models/mmd/list.json').then(r => {
+        if (!r.ok) { setStatus('MMD: /models/mmd 에 .pmx 파일을 넣으세요'); return; }
+        r.json().then(list => {
+          if (list.length > 0) {
+            window.__mmd.loadMMDModel('/models/mmd/' + list[0]);
+            window.__mmd.mmdLoop(mmdCanvas.width, mmdCanvas.height);
+            setStatus('3D 모드 / ' + list[0]);
+          } else {
+            setStatus('MMD: .pmx 파일 필요 (models/mmd/)');
+          }
+        });
+      }).catch(() => {
+        setStatus('MMD: /models/mmd/ 에 .pmx 파일 필요');
+      });
+      $('ctrl').style.display = 'none';
+      $('modelSel').style.display = 'none';
+    } else {
+      mmdCanvas.style.display = 'none';
+      liveCanvas.style.display = 'block';
+      if (window.__mmd.destroyMMD) window.__mmd.destroyMMD();
+      window.__mmd._initialized = false;
+      $('ctrl').style.display = '';
+      $('modelSel').style.display = '';
+      setStatus('Live2D 모드');
+    }
+  };
+
+  // ── MMD file upload trigger ──
+  const mmdUpload = document.createElement('input');
+  mmdUpload.type = 'file';
+  mmdUpload.accept = '.pmx,.pmd,.vmd';
+  mmdUpload.style.display = 'none';
+  mmdUpload.onchange = async () => {
+    const file = mmdUpload.files[0];
+    if (!file || !file.name.match(/\.(pmx|pmd|vmd)$/i)) return;
+    const form = new FormData();
+    form.append('file', file);
+    form.append('filename', file.name);
+    try {
+      const r = await fetch('/upload-mmd', { method: 'POST', body: form });
+      const j = await r.json();
+      if (j.ok) {
+        setStatus('업로드 완료: ' + file.name);
+        if (mmdMode && file.name.match(/\.(pmx|pmd)$/i)) {
+          window.__mmd.loadMMDModel('/models/mmd/' + file.name);
+          window.__mmd.mmdLoop(mmdCanvas.width, mmdCanvas.height);
+        }
+      } else {
+        setStatus('업로드 실패: ' + j.error);
+      }
+    } catch(e) { setStatus('업로드 에러'); }
+    mmdUpload.value = '';
+  };
+  document.body.appendChild(mmdUpload);
+  // Hotkey: press U to upload MMD
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'u' || e.key === 'U') mmdUpload.click();
+  });
+
   // ── flip button ──
   $('flipBtn').onclick = () => {
     flipX = !flipX;
@@ -425,6 +623,10 @@ async function init() {
       const ov = $('ov'), oc = ov.getContext('2d', {willReadFrequently: false});
       const CW = 640, CH = 480;
       ov.width = CW; ov.height = CH;
+      // load hand texture for overlay
+      const handTex = new Image();
+      handTex.onload = () => { handwearImg = handTex; };
+      handTex.src = '/textures/20250913_handwear.webp';
       // auto-calibration: track hand size min/max for adaptive normalization
       let calHandMin = 0.08, calHandMax = 0.35;
       let calSamples = 0, calOpen = 0;
@@ -531,11 +733,31 @@ async function init() {
               for (let h = 0; h < handData.length; h++) {
                 const hl = handData[h].landmarks;
                 const col = h === 0 ? '255,255,0' : '0,255,255';
+                // skeleton
                 oc.strokeStyle = `rgba(${col},0.4)`; oc.lineWidth = 2; oc.beginPath();
                 for (const [a,b] of HCONN) { oc.moveTo(hl[a].x*CW, hl[a].y*CH); oc.lineTo(hl[b].x*CW, hl[b].y*CH); }
                 oc.stroke();
                 oc.fillStyle = `rgb(${col})`;
                 for (let i = 0; i < hl.length; i++) { oc.beginPath(); oc.arc(hl[i].x*CW, hl[i].y*CH, 3, 0, Math.PI*2); oc.fill(); }
+                // hand texture overlay
+                if (handwearImg) {
+                  const wrist = hl[0], midMcp = hl[9], midTip = hl[12];
+                  if (wrist && midMcp) {
+                    const wx = wrist.x * CW, wy = wrist.y * CH;
+                    const mx = midMcp.x * CW, my = midMcp.y * CH;
+                    const angle = Math.atan2(my - wy, mx - wx);
+                    let handSize = 160;
+                    if (midTip) { const tx = midTip.x * CW, ty = midTip.y * CH; handSize = Math.hypot(tx - wx, ty - wy) * 2.0; }
+                    oc.save();
+                    oc.translate(wx, wy);
+                    oc.rotate(angle);
+                    const scale = handSize / handwearImg.width;
+                    const sw = handwearImg.width * scale, sh = handwearImg.height * scale;
+                    oc.globalAlpha = 0.85;
+                    oc.drawImage(handwearImg, -sw/2, -sh/2, sw, sh);
+                    oc.restore();
+                  }
+                }
               }
             }
             // ── finger curl helper (3D wrist-to-tip ratio, rotation-invariant) ──
@@ -735,6 +957,8 @@ async function init() {
 
               headX = flipX ? -rawX : rawX;
               headY = rawY;
+              // feed face data to MMD
+              window.__mmdFace = { yaw: headX * 0.3, pitch: -headY * 0.3 };
 
               // ── expression tracking ──
               const mouthDist = Math.abs(lm[13].y - lm[14].y);
