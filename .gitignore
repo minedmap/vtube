@@ -1,1 +1,11 @@
 .aider*
+rvc/static-models/
+rvc-models/
+rvc/export-venv/
+rvc/__pycache__/
+rvc/infer_pack/__pycache__/
+*.onnx
+*.onnx.data
+*.pth
+*.vrm
+*.index

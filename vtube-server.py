@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import http.server, json, os, sys, cgi, shutil, tempfile, zipfile, re
+import http.server, json, os, sys, shutil, tempfile, zipfile, re
 PORT = 3000
 ROOT = os.path.expanduser('~/vtube')
 MMD_DIR = os.path.join(ROOT, 'models', 'mmd')
@@ -22,6 +22,9 @@ MIME = {
     '.pmx': 'application/octet-stream',
     '.pmd': 'application/octet-stream',
     '.vmd': 'application/octet-stream',
+    '.vrm': 'application/octet-stream',
+    '.onnx': 'application/octet-stream',
+    '.data': 'application/octet-stream',
 }
 class H(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
@@ -68,14 +71,43 @@ class H(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
     def _upload_mmd(self):
-        ctype, pdict = cgi.parse_header(self.headers.get('Content-Type', ''))
-        if 'boundary' not in pdict:
+        ctype = self.headers.get('Content-Type', '')
+        boundary = None
+        for p in ctype.split(';'):
+            p = p.strip()
+            if p.startswith('boundary='):
+                boundary = p[9:].strip('"').strip("'")
+        if not boundary:
             self._json({'ok': False, 'error': 'multipart expected'})
             return
-        pdict['boundary'] = bytes(pdict['boundary'], 'utf-8');
-        pdict['CONTENT-LENGTH'] = int(self.headers.get('Content-Length', 0))
-        fields = cgi.parse_multipart(self.rfile, pdict)
-        if 'file' not in fields:
+        bdry_bytes = f'--{boundary}'.encode()
+        clen = int(self.headers.get('Content-Length', 0)) or 0
+        body = self.rfile.read(clen)
+        fields = {}
+        for raw_part in body.split(bdry_bytes):
+            raw = raw_part.strip(b'\r\n')
+            if not raw or raw == b'--':
+                continue
+            hdr_end = raw.find(b'\r\n\r\n')
+            if hdr_end < 0:
+                continue
+            hdr_text = raw[:hdr_end].decode('utf-8', errors='replace')
+            data = raw[hdr_end + 4:]
+            if data.endswith(b'\r\n'):
+                data = data[:-2]
+            name = None
+            fname = None
+            for hl in hdr_text.split('\r\n'):
+                if hl.lower().startswith('content-disposition:'):
+                    for hp in hl.split(';'):
+                        hp = hp.strip()
+                        if hp.startswith('name='):
+                            name = hp[5:].strip('"').strip("'")
+                        elif hp.startswith('filename='):
+                            fname = hp[9:].strip('"').strip("'")
+            if name:
+                fields.setdefault(name, []).append(data)
+        if 'file' not in fields or not fields['file']:
             self._json({'ok': False, 'error': 'no file'})
             return
         fdata = fields['file'][0]

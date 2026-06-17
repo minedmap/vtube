@@ -3,8 +3,10 @@ window.__state = {};
 
 // DOM helpers
 window.$ = id => document.getElementById(id);
-window.setStatus = t => { __state.statusEl.textContent = t; window._setStatus = t; };
-window.setError = m => { __state.errEl.style.display='block'; __state.errEl.textContent=m; window._setError = m; };
+window.setStatus = t => { __state.statusEl.textContent = t; };
+window.setError = m => { __state.errEl.style.display='block'; __state.errEl.textContent=m; };
+window._setStatus = window.setStatus;
+window._setError = window.setError;
 
 // State vars
 (function() {

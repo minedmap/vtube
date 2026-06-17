@@ -58,19 +58,30 @@
         window.__mmd._initialized = true;
       }
       window.__mmd.resizeMMD(mmdCanvas.width, mmdCanvas.height);
-      fetch('/models/mmd/list.json').then(r => {
-        if (!r.ok) { window.setStatus('MMD: /models/mmd 에 .pmx 파일을 넣으세요'); return; }
+      fetch('/models/vrm/list.json').then(r => {
+        if (!r.ok) {
+          // fallback to MMD
+          fetch('/models/mmd/list.json').then(r2 => {
+            if (!r2.ok) { window.setStatus('3D: /models/vrm/ 또는 /models/mmd/ 에 모델 필요'); return; }
+            r2.json().then(list => {
+              if (list.length > 0) {
+                window.__mmd.loadMMDModel('/models/mmd/' + list[0]);
+                window.__mmd.mmdLoop(mmdCanvas.width, mmdCanvas.height);
+                window.setStatus('3D (MMD) / ' + list[0]);
+              } else { window.setStatus('3D: .pmx 파일 필요 (models/mmd/)'); }
+            });
+          }).catch(() => { window.setStatus('3D: /models/vrm/ 또는 /models/mmd/ 에 모델 필요'); });
+          return;
+        }
         r.json().then(list => {
           if (list.length > 0) {
-            window.__mmd.loadMMDModel('/models/mmd/' + list[0]);
-            window.__mmd.mmdLoop(mmdCanvas.width, mmdCanvas.height);
-            window.setStatus('3D 모드 / ' + list[0]);
+            window.__mmd.loadVRMModel('/models/vrm/' + list[0]);
+            window.__mmd._activeVrm = list[0];
+            window.setStatus('3D (VRM) / ' + list[0]);
           } else {
-            window.setStatus('MMD: .pmx 파일 필요 (models/mmd/)');
+            window.setStatus('3D: .vrm 파일 필요 (models/vrm/)');
           }
         });
-      }).catch(() => {
-        window.setStatus('MMD: /models/mmd/ 에 .pmx 파일 필요');
       });
       $('ctrl').style.display = 'none';
       $('modelSel').style.display = 'none';

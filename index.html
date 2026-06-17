@@ -50,6 +50,8 @@ canvas{width:100%!important;height:100%!important;display:block}
     <button id="faceToggle" style="padding:4px 10px;font:11px sans-serif;background:#4a6cf7;color:#fff;border:none;border-radius:5px;cursor:pointer">얼굴</button>
     <button id="handToggle" style="padding:4px 10px;font:11px sans-serif;background:#4a6cf7;color:#fff;border:none;border-radius:5px;cursor:pointer">손</button>
     <button id="micBtn" style="padding:4px 10px;font:11px sans-serif;background:#555;color:#aaa;border:none;border-radius:5px;cursor:pointer">MIC</button>
+    <button id="rvcBtn" style="padding:4px 10px;font:11px sans-serif;background:#555;color:#aaa;border:none;border-radius:5px;cursor:pointer;display:none" title="RVC 음성 변환">RVC OFF</button>
+    <span id="rvcStatus" style="color:#888;font:10px sans-serif;display:none"></span>
     <select id="voiceSel" style="display:none;padding:3px 6px;font:10px sans-serif;background:#333;color:#fff;border:none;border-radius:4px;cursor:pointer;outline:none"></select>
     <canvas id="waveCanvas" width="80" height="24" style="display:none;border-radius:4px;background:rgba(0,0,0,0.4)"></canvas>
     <span id="volLabel" style="display:none;color:#888;font:10px sans-serif">볼륨</span>
@@ -70,8 +72,10 @@ window.process = {env:{NODE_ENV:'production'},argv:[],on:function(){},versions:{
 <script type="importmap">
 {
   "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+    "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@0.6.0/lib/three-vrm.module.js",
+    "@pixiv/three-vrm/": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@0.6.0/lib/"
   }
 }
 </script>
@@ -85,6 +89,7 @@ window.process = {env:{NODE_ENV:'production'},argv:[],on:function(){},versions:{
 <script src="/js/ui-controls.js"></script>
 <script src="/js/tracking.js"></script>
 <script src="/js/voice-changer.js"></script>
+<script src="/js/rvc-web.js"></script>
 
 </body>
 </html>

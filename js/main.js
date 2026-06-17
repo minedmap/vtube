@@ -67,11 +67,6 @@ async function init() {
     setStatus('모델 로더 없음');
   }
   setStatus('준비 완료');
-
-  // populate model dropdown
-  const sel = document.getElementById('modelSel');
-  MODELS.forEach((m,i) => { sel.innerHTML += `<option value="${i}">${m.label}</option>`; });
-  sel.value = '0';
 }
 
 window.addEventListener('load', () => {
