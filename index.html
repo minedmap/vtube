@@ -39,13 +39,12 @@ canvas{width:100%!important;height:100%!important;display:block}
   <button id="camBtn">CAM ON</button>
   <select id="modelSel" style="position:absolute;top:10px;left:78px;z-index:20;padding:4px 6px;font:11px sans-serif;background:#333;color:#fff;border:none;border-radius:4px;cursor:pointer;outline:none;height:28px"></select>
   <button id="ctrlShowBtn" style="position:absolute;top:10px;left:132px;z-index:30;padding:4px 6px;font:11px sans-serif;background:#333;color:#fff;border:none;border-radius:4px;cursor:pointer;height:28px;line-height:18px;width:50px" onclick="var c=document.getElementById('ctrl');c.style.display=c.style.display==='none'?'flex':'none'" title="Ctrl 표시">panel</button>
+  <input type="range" id="ctrlYSlider" min="10" max="95" value="95" style="position:absolute;top:42px;left:132px;z-index:30;width:50px;height:3px;accent-color:#4a6cf7;margin:0;padding:0;appearance:none;background:rgba(255,255,255,0.15);border-radius:2px;outline:none">
   <button id="modeBtn" style="position:absolute;top:10px;left:228px;z-index:20;padding:6px 12px;font:12px sans-serif;background:#555;color:#fff;border:none;border-radius:6px;cursor:pointer">3D</button>
   <button id="vtsBtn" style="display:none;position:absolute;top:10px;left:270px;z-index:20;padding:6px 12px;font:12px sans-serif;background:#555;color:#fff;border:none;border-radius:6px;cursor:pointer">VTS</button>
   <button id="boxToggle" style="display:none;position:absolute;top:10px;left:312px;z-index:20;padding:6px 12px;font:12px sans-serif;background:#333;color:#fff;border:none;border-radius:6px;cursor:pointer;user-select:none">박스 OFF</button>
   <div id="ctrl" style="position:absolute;bottom:60px;left:50%;transform:translateX(-50%);z-index:20;display:flex;gap:10px;align-items:center;background:rgba(0,0,0,0.5);padding:6px 14px;border-radius:8px">
    <div id="ctrlContent" style="display:flex;gap:10px;align-items:center">
-    <span style="color:#888;font:11px sans-serif">패널Y</span>
-    <input type="range" id="ctrlYSlider" min="10" max="90" value="95" style="width:50px;height:4px;accent-color:#4a6cf7">
     <span style="color:#888;font:11px sans-serif">크기</span>
     <input type="range" id="sizeSlider" min="2" max="80" value="18" style="width:100px;height:4px;accent-color:#4a6cf7">
     <span id="sizeVal" style="color:#fff;font:11px sans-serif;min-width:28px;text-align:right">18</span>
