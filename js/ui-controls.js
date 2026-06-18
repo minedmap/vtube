@@ -39,6 +39,12 @@
     $('yVal').textContent = val;
   };
 
+  // ── Ctrl panel Y slider ──
+  $('ctrlYSlider').oninput = () => {
+    const v = 100 - +$('ctrlYSlider').value;
+    $('ctrl').style.bottom = v + 'vh';
+  };
+
   // ── MMD mode toggle ──
   let mmdMode = false;
   const mmdCanvas = $('c3d');
