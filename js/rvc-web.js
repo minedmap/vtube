@@ -30,7 +30,8 @@ let rvc = {
   },
 }
 
-const RVC_WS_URL = 'ws://' + location.hostname + '/ws/rvc'
+const WS_PROTO = location.protocol === 'https:' ? 'wss' : 'ws'
+const RVC_WS_URL = WS_PROTO + '://' + location.hostname + '/ws/rvc'
 
 async function rvcInit() {
   if (rvc.loading || rvc.ready) return
