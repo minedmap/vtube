@@ -20,7 +20,7 @@ let rvc = {
   // settings
   settings: {
     pitch: 0,
-    sampleLen: 3840,
+    sampleLen: 100,
     fadeLen: 256,
     responseThreshold: 0.01,
     indexRate: 0.5,

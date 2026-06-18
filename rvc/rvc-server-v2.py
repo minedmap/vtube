@@ -39,10 +39,11 @@ def process_sync(audio_bytes: bytes, cfg: dict) -> bytes:
     if rms < cfg.get('responseThreshold', 0.01):
         return b'\x00' * (len(audio) * 4)  # return silence
 
-    # sampleLen — crop audio for faster/cheaper processing
-    sample_len = int(cfg.get('sampleLen', 3840))
-    if sample_len > 0 and sample_len < len(audio):
-        audio = audio[:sample_len]
+    # sampleLen — percentage of chunk to process (1-100)
+    sample_pct = max(1, min(100, int(cfg.get('sampleLen', 100)))) / 100.0
+    crop = int(len(audio) * sample_pct)
+    if crop > 0 and crop < len(audio):
+        audio = audio[:crop]
 
     # extraTime — zero pad edges for context
     extra = int(cfg.get('extraTime', 0))
@@ -134,7 +135,7 @@ def process_sync(audio_bytes: bytes, cfg: dict) -> bytes:
 async def handle_ws(ws):
     print('[RVC] client connected')
     cfg = {
-        'pitch': 0, 'sampleLen': 3840, 'fadeLen': 256,
+        'pitch': 0, 'sampleLen': 100, 'fadeLen': 256,
         'responseThreshold': 0.01, 'indexRate': 0.5,
         'extraTime': 0, 'inputNR': True, 'outputNR': True,
     }

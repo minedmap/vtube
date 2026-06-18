@@ -64,8 +64,8 @@ canvas{width:100%!important;height:100%!important;display:block}
       <input type="range" min="-12" max="12" value="0" step="1" style="width:80px;height:3px;accent-color:#4a6cf7" oninput="rvcSendSetting('pitch',+this.value);document.getElementById('rvcPitchVal').textContent=this.value">
       <label style="color:#aaa">임계 <span id="rvcThreshVal">0.01</span></label>
       <input type="range" min="0" max="0.1" value="0.01" step="0.005" style="width:80px;height:3px;accent-color:#4a6cf7" oninput="rvcSendSetting('responseThreshold',+this.value);document.getElementById('rvcThreshVal').textContent=this.value">
-      <label style="color:#aaa">샘플 <span id="rvcSamLen">3840</span></label>
-      <input type="range" min="1920" max="9600" value="3840" step="192" style="width:80px;height:3px;accent-color:#4a6cf7" oninput="rvcSendSetting('sampleLen',+this.value);document.getElementById('rvcSamLen').textContent=this.value">
+      <label style="color:#aaa">샘플 <span id="rvcSamLen">100</span></label>
+      <input type="range" min="1" max="100" value="100" step="1" style="width:80px;height:3px;accent-color:#4a6cf7" oninput="rvcSendSetting('sampleLen',+this.value);document.getElementById('rvcSamLen').textContent=this.value">
       <label style="color:#aaa">추론 <span id="rvcExtra">0</span></label>
       <input type="range" min="0" max="500" value="0" step="10" style="width:80px;height:3px;accent-color:#4a6cf7" oninput="rvcSendSetting('extraTime',+this.value);document.getElementById('rvcExtra').textContent=this.value">
       <label style="color:#aaa"><input type="checkbox" checked onchange="rvcSendSetting('inputNR',this.checked)"> 입력잡음↓</label>
