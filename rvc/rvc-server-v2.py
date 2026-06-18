@@ -39,6 +39,17 @@ def process_sync(audio_bytes: bytes, cfg: dict) -> bytes:
     if rms < cfg.get('responseThreshold', 0.01):
         return b'\x00' * (len(audio) * 4)  # return silence
 
+    # sampleLen — crop audio for faster/cheaper processing
+    sample_len = int(cfg.get('sampleLen', 3840))
+    if sample_len > 0 and sample_len < len(audio):
+        audio = audio[:sample_len]
+
+    # extraTime — zero pad edges for context
+    extra = int(cfg.get('extraTime', 0))
+    if extra > 0:
+        pad = np.zeros(extra * 48, dtype=np.float32)  # extra seconds * 48kHz
+        audio = np.concatenate([pad, audio, pad])
+
     # Input noise reduction
     if cfg.get('inputNR', True):
         # Simple gate
@@ -97,6 +108,15 @@ def process_sync(audio_bytes: bytes, cfg: dict) -> bytes:
     }
     out = syn_model.run(None, inp)[0]
     wav_out = out.squeeze().astype(np.float32)
+
+    # fadeLen — crossfade edges
+    fade = int(cfg.get('fadeLen', 256))
+    if fade > 0 and fade < len(wav_out):
+        fade_in = np.linspace(0, 1, fade, dtype=np.float32)
+        fade_out = np.linspace(1, 0, fade, dtype=np.float32)
+        wav_out[:fade] *= fade_in
+        wav_out[-fade:] *= fade_out
+
     # Boost model output to match input level
     wav_out *= 8.0
     np.clip(wav_out, -1, 1, out=wav_out)
@@ -127,7 +147,7 @@ async def handle_ws(ws):
                     for k in cfg:
                         if k in data:
                             cfg[k] = data[k]
-                    print(f'[RVC] config: pitch={cfg["pitch"]}')
+                    print(f'[RVC] config: {json.dumps(cfg)}')
             except: pass
         elif isinstance(msg, bytes):
             try:
