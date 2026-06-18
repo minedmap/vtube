@@ -168,6 +168,17 @@
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         window.__audioCtx = audioCtx;
+        // Route output to headset if available
+        if (audioCtx.destination.setSinkId) {
+          try {
+            navigator.mediaDevices.enumerateDevices().then(devices => {
+              const h = devices.find(d => d.kind === 'audiooutput' && d.deviceId.includes('comm'))
+                || devices.find(d => d.kind === 'audiooutput' && d.deviceId.includes('head'))
+                || devices.find(d => d.kind === 'audiooutput' && d.deviceId !== 'default' && d.deviceId !== 'communications');
+              if (h) audioCtx.destination.setSinkId(h.deviceId).catch(()=>{});
+            }).catch(()=>{});
+          } catch(e) {}
+        }
         source = audioCtx.createMediaStreamSource(stream);
         gainNode = audioCtx.createGain();
         gainNode.gain.value = parseInt(volSlider.value) / 100;
