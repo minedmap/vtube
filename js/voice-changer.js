@@ -25,15 +25,8 @@
   let currentVoice = 0;
   voiceSel.addEventListener('change', () => {
     currentVoice = parseInt(voiceSel.value);
-    if (micOn) updatePitch();
+    if (processor) processor.port.postMessage({ type: 'pitch', value: VOICES[currentVoice].pitch });
   });
-  function updatePitch() {
-    if (!processor) return;
-    const v = VOICES[currentVoice];
-    processor._pitchRatio = Math.pow(2, v.pitch / 12);
-    processor._writePos = 0;
-    processor._readPos = 0;
-  }
 
   // ── Waveform overlay canvas ──
   let waveOverlay = document.getElementById('waveOverlay');
@@ -132,15 +125,6 @@
     };
   }
 
-  function applyGate(input) {
-    if (!noiseGateOn) return;
-    let sumSq = 0;
-    for (let i = 0; i < input.length; i++) sumSq += input[i] * input[i];
-    if (Math.sqrt(sumSq / input.length) < GATE_THRESHOLD) {
-      input.fill(0);
-    }
-  }
-
   micBtn.addEventListener('click', async () => {
     if (micOn) {
       if (waveAnimId) { cancelAnimationFrame(waveAnimId); waveAnimId = null; }
@@ -231,65 +215,19 @@
         analyser = audioCtx.createAnalyser();
         analyser.fftSize = 2048;
         analyser.smoothingTimeConstant = 0.8;
-        const bufLen = 16384;
-        processor = audioCtx.createScriptProcessor(1024, 1, 1);
-        processor._pitchRatio = Math.pow(2, VOICES[0].pitch / 12);
-        processor._buf = new Float32Array(bufLen);
-        processor._wp = 0;
-        processor._rp = 0;
-        processor.onaudioprocess = function(e) {
-          const input = e.inputBuffer.getChannelData(0);
-          const output = e.outputBuffer.getChannelData(0);
-          applyGate(input);
+        // AudioWorklet (real-time thread, no glitches)
+        await audioCtx.audioWorklet.addModule('/js/pitch-worklet.js');
+        processor = new AudioWorkletNode(audioCtx, 'pitch-processor');
+        processor.port.postMessage({ type: 'pitch', value: VOICES[currentVoice].pitch });
+        processor.port.postMessage({ type: 'gate', value: GATE_THRESHOLD });
 
-          // RVC mode
-          if (window._rvcMode && window.rvcReadOutput) {
-            rvcFeedChunk(new Float32Array(input));
-            if (rvcReadOutput(output)) return;
-            for (let i = 0; i < output.length; i++) output[i] = input[i];
-            return;
-          }
-
-          // WSOLA pitch shift (gain-stable)
-          const ratio = this._pitchRatio;
-          const buf = this._buf;
-          const bLen = buf.length;
-          let wp = this._wp & (bLen - 1);
-          let rp = this._rp;
-          const fadeLen = 256;
-
-          // Write with ring buffer overwrite (no accumulation)
-          for (let i = 0; i < input.length; i++)
-            buf[(wp + i) & (bLen - 1)] = input[i];
-          wp = (wp + input.length) & (bLen - 1);
-          this._wp += input.length;
-
-          // Read with interpolation + crossfade
-          for (let i = 0; i < output.length; i++) {
-            const fi = Math.floor(rp);
-            const i0 = fi & (bLen - 1);
-            const i1 = (i0 + 1) & (bLen - 1);
-            const frac = rp - fi;
-            let s = buf[i0] + (buf[i1] - buf[i0]) * frac;
-
-            // Crossfade when read wraps around
-            const wrapDist = this._wp - rp;
-            if (wrapDist > 0 && wrapDist < fadeLen) {
-              const gain = wrapDist / fadeLen;
-              const rp2 = rp - (bLen / 2);
-              const fi2 = Math.floor(rp2);
-              const j0 = fi2 & (bLen - 1);
-              const j1 = (j0 + 1) & (bLen - 1);
-              const frac2 = rp2 - fi2;
-              const s2 = buf[j0] + (buf[j1] - buf[j0]) * frac2;
-              s = s * gain + s2 * (1 - gain);
-            }
-
-            output[i] = Math.tanh(s * 0.6);
-            rp += ratio;
-          }
-          this._rp = rp;
+        // ScriptProcessor for RVC feeding only (taps raw audio before worklet)
+        const rvcTap = audioCtx.createScriptProcessor(1024, 1, 1);
+        rvcTap.onaudioprocess = function(e) {
+          if (window._rvcMode) rvcFeedChunk(e.inputBuffer.getChannelData(0));
         };
+        analyser.connect(rvcTap);
+        rvcTap.connect(processor);
         // Noise reduction chain
         const nrLP = audioCtx.createBiquadFilter();
         nrLP.type = 'lowpass';
@@ -313,7 +251,6 @@
         hpFilter.connect(expander);
         expander.connect(gainNode);
         gainNode.connect(analyser);
-        analyser.connect(processor);
         processor.connect(nrLS);
         nrLS.connect(nrLP);
         nrLP.connect(dest);
