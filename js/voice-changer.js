@@ -173,7 +173,25 @@
         window.__audioCtx = audioCtx;
         // Ensure context is running (mobile)
         if (audioCtx.state === 'suspended') await audioCtx.resume();
-        // Use MediaStreamDestination + audio element for proper system routing
+
+        // Find headset output device (non-internal)
+        let headsetId = 'default';
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const audioOuts = devices.filter(d => d.kind === 'audiooutput');
+          // Pick first device that is NOT internal speaker
+          const headset = audioOuts.find(d =>
+            d.label && !/internal|speaker|Built-in/i.test(d.label) && d.deviceId
+          ) || audioOuts.find(d => d.deviceId && d.deviceId !== 'default');
+          if (headset) headsetId = headset.deviceId;
+        } catch(e) {}
+
+        // Try AudioContext.setSinkId first (Chrome 110+)
+        if (audioCtx.setSinkId) {
+          audioCtx.setSinkId(headsetId).catch(() => {});
+        }
+
+        // Use MediaStreamDestination + audio element
         const dest = audioCtx.createMediaStreamDestination();
         const outAud = document.createElement('audio');
         outAud.autoplay = true;
@@ -182,9 +200,9 @@
         outAud.setAttribute('playsinline', '');
         outAud.volume = 1.0;
         document.body.appendChild(outAud);
-        // Force system default audio sink for headset detection
-        if (outAud.setSinkId) {
-          outAud.setSinkId('default').catch(() => {});
+        // Force output device on audio element
+        if (outAud.setSinkId && headsetId !== 'default') {
+          outAud.setSinkId(headsetId).catch(() => {});
         }
         // Explicit play() inside user gesture (MIC click)
         outAud.play().catch(() => {});
