@@ -234,8 +234,6 @@
         const bufLen = 16384;
         processor = audioCtx.createScriptProcessor(1024, 1, 1);
         processor._pitchRatio = Math.pow(2, VOICES[0].pitch / 12);
-        processor._buffer = new Float32Array(bufLen);
-        processor._writePos = 0;
         processor._readPos = 0;
         processor.onaudioprocess = function(e) {
           const input = e.inputBuffer.getChannelData(0);
@@ -246,55 +244,24 @@
           if (window._rvcMode && window.rvcReadOutput) {
             rvcFeedChunk(new Float32Array(input));
             if (rvcReadOutput(output)) return;
-            // fallback if no rvc output yet: passthrough
             for (let i = 0; i < output.length; i++) output[i] = input[i];
             return;
           }
+
+          // Simple resampling pitch shift (no WSOLA artifacts)
           const ratio = this._pitchRatio;
-          const buf = this._buffer;
-          const bLen = buf.length;
-          let wp = this._writePos;
           let rp = this._readPos;
-          const fadeLen = 256;
-
-          // write input (overlap, buffer pre-cleared)
-          for (let i = 0; i < input.length; i++) {
-            buf[wp % bLen] = input[i];
-            buf[(wp + input.length) % bLen] += input[i];
-            wp++;
-          }
-          this._writePos = wp;
-
-          // read with crossfade at wrap
           for (let i = 0; i < output.length; i++) {
-            let i0 = Math.floor(rp) % bLen;
-            let i1 = (i0 + 1) % bLen;
-            const frac = rp - Math.floor(rp);
-            let s = buf[i0] + (buf[i1] - buf[i0]) * frac;
-
-            // crossfade when read catches up to write
-            let wrapDist = wp - rp;
-            if (wrapDist < 0) wrapDist += bLen;
-            if (wrapDist < fadeLen) {
-              const gain = wrapDist / fadeLen;
-              let rp2 = rp - (bLen / 2);
-              if (rp2 < 0) rp2 += bLen;
-              let j0 = Math.floor(rp2) % bLen;
-              let j1 = (j0 + 1) % bLen;
-              let s2 = buf[j0] + (buf[j1] - buf[j0]) * (rp2 - Math.floor(rp2));
-              s = s * gain + s2 * (1 - gain);
-            }
-
+            const fi = Math.floor(rp);
+            const i0 = fi % input.length;
+            const i1 = (i0 + 1) % input.length;
+            const frac = rp - fi;
+            let s = input[i0] + (input[i1] - input[i0]) * frac;
+            // Soft clip
             output[i] = Math.tanh(s);
             rp += ratio;
           }
-          // Clear consumed buffer positions (prevent accumulation)
-          const clearEnd = Math.floor(rp);
-          const clearStart = Math.floor(this._readPos);
-          for (let ci = clearStart; ci < clearEnd; ci++) {
-            buf[ci % bLen] = 0;
-          }
-          this._readPos = rp;
+          this._readPos = rp - input.length;
         };
         // Noise reduction chain
         const nrLP = audioCtx.createBiquadFilter();
