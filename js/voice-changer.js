@@ -213,7 +213,9 @@
           ctx2.startRendering().then(buf => {
             const src = audioCtx.createBufferSource();
             src.buffer = buf;
-            src.connect(dest);
+            const tg = audioCtx.createGain();
+            tg.gain.value = 0.15;
+            src.connect(tg); tg.connect(dest);
             src.start(0); src.stop(audioCtx.currentTime + 0.8);
           });
           // Apply setSinkId AFTER play has started
