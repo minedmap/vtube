@@ -144,15 +144,13 @@
   micBtn.addEventListener('click', async () => {
     if (micOn) {
       if (waveAnimId) { cancelAnimationFrame(waveAnimId); waveAnimId = null; }
+      navigator.mediaDevices.removeEventListener('devicechange', _applySink);
       if (processor) { processor.disconnect(); processor = null; }
       if (analyser) { analyser.disconnect(); analyser = null; }
       if (gainNode) { gainNode.disconnect(); gainNode = null; }
       if (source) { source.disconnect(); source = null; }
       if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
       if (audioCtx) { audioCtx.close(); audioCtx = null; }
-      // Cleanup audio output element
-      const _oa = window.__rvcOutAudio;
-      if (_oa) { _oa.pause(); _oa.srcObject = null; _oa.remove(); window.__rvcOutAudio = null; }
       micOn = false;
       micBtn.style.background = '#555'; micBtn.style.color = '#aaa';
       voiceSel.style.display = 'none';
@@ -174,39 +172,33 @@
         // Ensure context is running (mobile)
         if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-        // Find headset output device (non-internal)
-        let headsetId = 'default';
-        try {
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const audioOuts = devices.filter(d => d.kind === 'audiooutput');
-          // Pick first device that is NOT internal speaker
-          const headset = audioOuts.find(d =>
-            d.label && !/internal|speaker|Built-in/i.test(d.label) && d.deviceId
-          ) || audioOuts.find(d => d.deviceId && d.deviceId !== 'default');
-          if (headset) headsetId = headset.deviceId;
-        } catch(e) {}
-
-        // Try AudioContext.setSinkId first (Chrome 110+)
-        if (audioCtx.setSinkId) {
-          audioCtx.setSinkId(headsetId).catch(() => {});
+        // Find headset output device (non-internal speaker)
+        let _hsId = 'default';
+        async function _findHeadset() {
+          try {
+            const devs = await navigator.mediaDevices.enumerateDevices();
+            const outs = devs.filter(d => d.kind === 'audiooutput');
+            const hs = outs.find(d => d.label && !/internal|speaker|Built-in/i.test(d.label) && d.deviceId)
+              || outs.find(d => d.deviceId && d.deviceId !== 'default');
+            if (hs) _hsId = hs.deviceId;
+          } catch(e) {}
         }
+        await _findHeadset();
 
-        // Use MediaStreamDestination + audio element
-        const dest = audioCtx.createMediaStreamDestination();
-        const outAud = document.createElement('audio');
-        outAud.autoplay = true;
-        outAud.muted = false;
-        outAud.srcObject = dest.stream;
-        outAud.setAttribute('playsinline', '');
-        outAud.volume = 1.0;
-        document.body.appendChild(outAud);
-        // Force output device on audio element
-        if (outAud.setSinkId && headsetId !== 'default') {
-          outAud.setSinkId(headsetId).catch(() => {});
+        // Apply setSinkId (dynamic following)
+        async function _applySink() {
+          await _findHeadset();
+          if (audioCtx.setSinkId) {
+            audioCtx.setSinkId(_hsId).catch(() => {});
+          }
         }
-        // Explicit play() inside user gesture (MIC click)
-        outAud.play().catch(() => {});
-        window.__rvcOutAudio = outAud;
+        _applySink();
+
+        // Watch for device hotplug (headset plug/unplug)
+        navigator.mediaDevices.addEventListener('devicechange', _applySink);
+
+        // Direct routing: processor → destination (follows system routing natively)
+        const dest = audioCtx.destination;
         source = audioCtx.createMediaStreamSource(stream);
         gainNode = audioCtx.createGain();
         gainNode.gain.value = parseInt(volSlider.value) / 100;
