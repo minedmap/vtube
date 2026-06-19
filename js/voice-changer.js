@@ -299,7 +299,19 @@
         nrLS.type = 'lowshelf';
         nrLS.frequency.value = 2000;
         nrLS.gain.value = -8; // cut 8dB above 2kHz
-        source.connect(gainNode);
+        // Mic input cleaner: HPF 120Hz + gentle expander
+        const hpFilter = audioCtx.createBiquadFilter();
+        hpFilter.type = 'highpass';
+        hpFilter.frequency.value = 120;
+        const expander = audioCtx.createDynamicsCompressor();
+        expander.threshold.value = -40;
+        expander.knee.value = 20;
+        expander.ratio.value = 4;
+        expander.attack.value = 0.003;
+        expander.release.value = 0.25;
+        source.connect(hpFilter);
+        hpFilter.connect(expander);
+        expander.connect(gainNode);
         gainNode.connect(analyser);
         analyser.connect(processor);
         processor.connect(nrLS);
