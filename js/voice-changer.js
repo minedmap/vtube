@@ -219,16 +219,9 @@
         processor.port.postMessage({ type: 'pitch', value: VOICES[currentVoice].pitch });
         processor.port.postMessage({ type: 'gate', value: GATE_THRESHOLD });
 
-        // ScriptProcessor for RVC feeding only (taps raw audio before worklet)
-        const rvcTap = audioCtx.createScriptProcessor(1024, 1, 1);
-        rvcTap.onaudioprocess = function(e) {
-          if (window._rvcMode) rvcFeedChunk(e.inputBuffer.getChannelData(0));
-        };
-        analyser.connect(rvcTap);
-        rvcTap.connect(dest);
-        analyser.connect(processor);
         source.connect(gainNode);
         gainNode.connect(analyser);
+        analyser.connect(processor);
         processor.connect(dest);
         micOn = true;
         micBtn.style.background = '#4a6cf7'; micBtn.style.color = '#fff';
