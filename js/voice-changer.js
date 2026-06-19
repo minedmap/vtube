@@ -181,6 +181,8 @@
         outAud.srcObject = dest.stream;
         outAud.setAttribute('playsinline', '');
         document.body.appendChild(outAud);
+        // Explicit play() inside user gesture (MIC click)
+        outAud.play().catch(() => {});
         window.__rvcOutAudio = outAud;
         source = audioCtx.createMediaStreamSource(stream);
         gainNode = audioCtx.createGain();
