@@ -225,7 +225,8 @@
           if (window._rvcMode) rvcFeedChunk(e.inputBuffer.getChannelData(0));
         };
         analyser.connect(rvcTap);
-        rvcTap.connect(processor);
+        rvcTap.connect(dest);
+        analyser.connect(processor);
         source.connect(gainNode);
         gainNode.connect(analyser);
         processor.connect(dest);
