@@ -180,7 +180,12 @@
         outAud.muted = false;
         outAud.srcObject = dest.stream;
         outAud.setAttribute('playsinline', '');
+        outAud.volume = 1.0;
         document.body.appendChild(outAud);
+        // Force system default audio sink for headset detection
+        if (outAud.setSinkId) {
+          outAud.setSinkId('default').catch(() => {});
+        }
         // Explicit play() inside user gesture (MIC click)
         outAud.play().catch(() => {});
         window.__rvcOutAudio = outAud;
