@@ -203,7 +203,12 @@
         outAud.volume = 1.0;
         outAud.style.cssText = 'position:fixed;top:-999px;opacity:0';
         document.body.appendChild(outAud);
-        outAud.play().catch(() => {});
+        outAud.play().then(() => {
+          // Apply setSinkId AFTER play has started
+          const sidSupport = typeof outAud.setSinkId;
+          if (sidSupport === 'function') outAud.setSinkId(_hsId).catch(() => {});
+          window._setStatus(`MIC 켜짐 - sinkId:${sidSupport}`);
+        }).catch(() => {});
         window.__rvcAudio = outAud;
         const dest = mDest;
         source = audioCtx.createMediaStreamSource(stream);
