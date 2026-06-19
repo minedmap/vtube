@@ -154,7 +154,7 @@
     } else {
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+          audio: { noiseSuppression: true, echoCancellation: true, autoGainControl: true }
         });
 
         // Find headset BEFORE creating AudioContext (for sinkId option)
