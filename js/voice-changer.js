@@ -169,7 +169,9 @@
       if (_rs) _rs.style.display = 'none';
     } else {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+        });
 
         // Find headset BEFORE creating AudioContext (for sinkId option)
         async function _findHeadset() {
