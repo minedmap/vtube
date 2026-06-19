@@ -257,10 +257,11 @@
           let rp = this._readPos;
           const fadeLen = 256;
 
-          // write input (2x for overlap)
+          // write input with overlap (half gain to prevent clipping)
+          const overlapGain = 0.5;
           for (let i = 0; i < input.length; i++) {
-            buf[wp % bLen] = input[i];
-            buf[(wp + input.length) % bLen] += input[i]; // overlap
+            buf[wp % bLen] += input[i] * overlapGain;
+            buf[(wp + input.length) % bLen] += input[i] * overlapGain;
             wp++;
           }
           this._writePos = wp;
@@ -285,7 +286,7 @@
               s = s * gain + s2 * (1 - gain);
             }
 
-            output[i] = s;
+            output[i] = Math.max(-1, Math.min(1, s));
             rp += ratio;
           }
           this._readPos = rp;
