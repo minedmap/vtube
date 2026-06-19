@@ -151,6 +151,9 @@
       if (source) { source.disconnect(); source = null; }
       if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
       if (audioCtx) { audioCtx.close(); audioCtx = null; }
+      // Cleanup video output element
+      const _vo = document.querySelector('#rvcOutVideo');
+      if (_vo) { _vo.pause(); _vo.srcObject = null; _vo.remove(); }
       micOn = false;
       micBtn.style.background = '#555'; micBtn.style.color = '#aaa';
       voiceSel.style.display = 'none';
@@ -197,8 +200,25 @@
         // Watch for device hotplug (headset plug/unplug)
         navigator.mediaDevices.addEventListener('devicechange', _applySink);
 
-        // Direct routing: processor → destination (follows system routing natively)
-        const dest = audioCtx.destination;
+        // Use MediaStreamDestination + video element for proper mobile audio routing
+        const mDest = audioCtx.createMediaStreamDestination();
+        const canvas2 = document.createElement('canvas');
+        canvas2.width = 2; canvas2.height = 2;
+        const vStream = canvas2.captureStream(1);
+        const combinedStream = new MediaStream([
+          vStream.getVideoTracks()[0],
+          mDest.stream.getAudioTracks()[0]
+        ]);
+        const vout = document.createElement('video');
+        vout.autoplay = true;
+        vout.muted = false;
+        vout.id = 'rvcOutVideo';
+        vout.playsInline = true;
+        vout.style.cssText = 'position:fixed;top:-999px;pointer-events:none;opacity:0';
+        vout.srcObject = combinedStream;
+        document.body.appendChild(vout);
+        vout.play().catch(() => {});
+        const dest = mDest;
         source = audioCtx.createMediaStreamSource(stream);
         gainNode = audioCtx.createGain();
         gainNode.gain.value = parseInt(volSlider.value) / 100;
