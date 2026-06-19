@@ -204,6 +204,18 @@
         outAud.style.cssText = 'position:fixed;top:-999px;opacity:0';
         document.body.appendChild(outAud);
         outAud.play().then(() => {
+          // Play 1s test tone (440Hz) to verify audio chain
+          const ctx2 = new OfflineAudioContext(1, 44100, 44100);
+          const osc = ctx2.createOscillator();
+          osc.frequency.value = 440;
+          osc.connect(ctx2.destination);
+          osc.start(0); osc.stop(1);
+          ctx2.startRendering().then(buf => {
+            const src = audioCtx.createBufferSource();
+            src.buffer = buf;
+            src.connect(dest);
+            src.start(0); src.stop(audioCtx.currentTime + 0.8);
+          });
           // Apply setSinkId AFTER play has started
           const sidSupport = typeof outAud.setSinkId;
           if (sidSupport === 'function') outAud.setSinkId(_hsId).catch(() => {});
