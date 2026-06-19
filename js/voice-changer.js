@@ -296,15 +296,21 @@
           }
           this._readPos = rp;
         };
-        // Low-pass filter after pitch shift (reduce noise artifacts)
-        const lpf = audioCtx.createBiquadFilter();
-        lpf.type = 'lowpass';
-        lpf.frequency.value = 4000;
+        // Noise reduction chain
+        const nrLP = audioCtx.createBiquadFilter();
+        nrLP.type = 'lowpass';
+        nrLP.frequency.value = 3000;
+        nrLP.Q.value = 0.7;
+        const nrLS = audioCtx.createBiquadFilter();
+        nrLS.type = 'lowshelf';
+        nrLS.frequency.value = 2000;
+        nrLS.gain.value = -8; // cut 8dB above 2kHz
         source.connect(gainNode);
         gainNode.connect(analyser);
         analyser.connect(processor);
-        processor.connect(lpf);
-        lpf.connect(dest);
+        processor.connect(nrLS);
+        nrLS.connect(nrLP);
+        nrLP.connect(dest);
         micOn = true;
         micBtn.style.background = '#4a6cf7'; micBtn.style.color = '#fff';
         voiceSel.style.display = '';
