@@ -150,6 +150,9 @@
       if (source) { source.disconnect(); source = null; }
       if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
       if (audioCtx) { audioCtx.close(); audioCtx = null; }
+      // Cleanup audio output element
+      const _oa = window.__rvcOutAudio;
+      if (_oa) { _oa.pause(); _oa.srcObject = null; _oa.remove(); window.__rvcOutAudio = null; }
       micOn = false;
       micBtn.style.background = '#555'; micBtn.style.color = '#aaa';
       voiceSel.style.display = 'none';
@@ -168,10 +171,15 @@
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         window.__audioCtx = audioCtx;
-        // Route output to headset if available
-        if (audioCtx.destination.setSinkId) {
-          try { audioCtx.destination.setSinkId('default').catch(()=>{}); } catch(e){}
-        }
+        // Use MediaStreamDestination + audio element for proper system routing
+        const dest = audioCtx.createMediaStreamDestination();
+        const outAud = document.createElement('audio');
+        outAud.autoplay = true;
+        outAud.muted = false;
+        outAud.srcObject = dest.stream;
+        outAud.setAttribute('playsinline', '');
+        document.body.appendChild(outAud);
+        window.__rvcOutAudio = outAud;
         source = audioCtx.createMediaStreamSource(stream);
         gainNode = audioCtx.createGain();
         gainNode.gain.value = parseInt(volSlider.value) / 100;
@@ -240,7 +248,7 @@
         source.connect(gainNode);
         gainNode.connect(analyser);
         analyser.connect(processor);
-        processor.connect(audioCtx.destination);
+        processor.connect(dest);
         micOn = true;
         micBtn.style.background = '#4a6cf7'; micBtn.style.color = '#fff';
         voiceSel.style.display = '';
