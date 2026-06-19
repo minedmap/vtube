@@ -135,9 +135,6 @@
       if (source) { source.disconnect(); source = null; }
       if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
       if (audioCtx) { audioCtx.close(); audioCtx = null; }
-      // Cleanup dual output element
-      const _rvcAud = window.__rvcAudio;
-      if (_rvcAud) { _rvcAud.pause(); _rvcAud.srcObject = null; _rvcAud.remove(); window.__rvcAudio = null; }
       micOn = false;
       micBtn.style.background = '#555'; micBtn.style.color = '#aaa';
       voiceSel.style.display = 'none';
@@ -177,18 +174,6 @@
         }
         navigator.mediaDevices.addEventListener('devicechange', _applySink);
 
-        // Dual output: WebAudio destination + hidden audio element (for system routing)
-        const mDest = audioCtx.createMediaStreamDestination();
-        const outAud = document.createElement('audio');
-        outAud.autoplay = true;
-        outAud.srcObject = mDest.stream;
-        outAud.volume = 1.0;
-        outAud.style.cssText = 'position:fixed;top:-999px;opacity:0';
-        document.body.appendChild(outAud);
-        outAud.play().then(() => {
-          window._setStatus(`MIC 켜짐 - sinkId:${typeof outAud.setSinkId}`);
-        }).catch(() => {});
-        window.__rvcAudio = outAud;
         const dest = audioCtx.destination;
         source = audioCtx.createMediaStreamSource(stream);
         gainNode = audioCtx.createGain();
