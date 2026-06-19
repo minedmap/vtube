@@ -167,34 +167,32 @@
     } else {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        window.__audioCtx = audioCtx;
-        // Ensure context is running (mobile)
-        if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-        // Find headset output device (non-internal speaker)
-        let _hsId = 'default';
+        // Find headset BEFORE creating AudioContext (for sinkId option)
         async function _findHeadset() {
           try {
             const devs = await navigator.mediaDevices.enumerateDevices();
             const outs = devs.filter(d => d.kind === 'audiooutput');
             const hs = outs.find(d => d.label && !/internal|speaker|Built-in/i.test(d.label) && d.deviceId)
               || outs.find(d => d.deviceId && d.deviceId !== 'default');
-            if (hs) _hsId = hs.deviceId;
-          } catch(e) {}
+            return hs ? hs.deviceId : 'default';
+          } catch(e) { return 'default'; }
         }
-        await _findHeadset();
+        let _hsId = await _findHeadset();
 
-        // Apply setSinkId (dynamic following)
-        async function _applySink() {
-          await _findHeadset();
-          if (audioCtx.setSinkId) {
-            audioCtx.setSinkId(_hsId).catch(() => {});
-          }
-        }
-        _applySink();
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sinkId: _hsId });
+        window.__audioCtx = audioCtx;
+        // Ensure context is running (mobile)
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
 
         // Watch for device hotplug (headset plug/unplug)
+        async function _applySink() {
+          const newId = await _findHeadset();
+          if (newId !== _hsId) {
+            _hsId = newId;
+            if (audioCtx.setSinkId) audioCtx.setSinkId(newId).catch(() => {});
+          }
+        }
         navigator.mediaDevices.addEventListener('devicechange', _applySink);
 
         // Raw WebAudio → destination (system routing native)
