@@ -285,7 +285,7 @@
               s = s * gain + s2 * (1 - gain);
             }
 
-            output[i] = Math.max(-1, Math.min(1, s));
+            output[i] = Math.tanh(s);
             rp += ratio;
           }
           // Clear consumed buffer positions (prevent accumulation)
