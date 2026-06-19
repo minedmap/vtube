@@ -171,6 +171,8 @@
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         window.__audioCtx = audioCtx;
+        // Ensure context is running (mobile)
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
         // Use MediaStreamDestination + audio element for proper system routing
         const dest = audioCtx.createMediaStreamDestination();
         const outAud = document.createElement('audio');
