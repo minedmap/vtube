@@ -151,6 +151,9 @@
       if (source) { source.disconnect(); source = null; }
       if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
       if (audioCtx) { audioCtx.close(); audioCtx = null; }
+      // Cleanup silent audio focus element
+      const _sa = window.__silentAudio;
+      if (_sa) { _sa.pause(); _sa.src = ''; _sa.remove(); window.__silentAudio = null; }
       micOn = false;
       micBtn.style.background = '#555'; micBtn.style.color = '#aaa';
       voiceSel.style.display = 'none';
@@ -179,6 +182,39 @@
           } catch(e) { return 'default'; }
         }
         let _hsId = await _findHeadset();
+
+        // Silent WAV to claim audio focus (Android routing fix)
+        function _silentAudioFocus() {
+          try {
+            const sr = 8000, ch = 1, bits = 16;
+            const dataLen = sr * ch * bits / 8; // 1초 무음
+            const buf = new ArrayBuffer(44 + dataLen);
+            const v = new DataView(buf);
+            const w = (p, s) => { v.setUint8(p, s); };
+            const w16 = (p, s) => { v.setUint16(p, s, true); };
+            const w32 = (p, s) => { v.setUint32(p, s, true); };
+            w(0, 0x52); w(1, 0x49); w(2, 0x46); w(3, 0x46); // RIFF
+            w32(4, 36 + dataLen);
+            w(8, 0x57); w(9, 0x41); w(10, 0x56); w(11, 0x45); // WAVE
+            w(12, 0x66); w(13, 0x6d); w(14, 0x74); w(15, 0x20); // fmt 
+            w32(16, 16); w16(20, 1); w16(22, ch);
+            w32(24, sr); w32(28, sr * ch * bits / 8);
+            w16(32, ch * bits / 8); w16(34, bits);
+            w(36, 0x64); w(37, 0x61); w(38, 0x74); w(39, 0x61); // data
+            w32(40, dataLen);
+            const blob = new Blob([buf], { type: 'audio/wav' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('audio');
+            a.loop = true;
+            a.volume = 0.001;
+            a.src = url;
+            a.style.cssText = 'display:none';
+            document.body.appendChild(a);
+            a.play().catch(() => {});
+            window.__silentAudio = a;
+          } catch(e) {}
+        }
+        _silentAudioFocus();
 
         audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sinkId: _hsId });
         window.__audioCtx = audioCtx;
