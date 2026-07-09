@@ -21,6 +21,8 @@ window._setError = window.setError;
   s.trackingLoop = null;
   s.boxVisible = true;
   s.mouthOpen = 0;
+  s.mouthForm = 0;         // -1 오므림(う) ~ 0 중립 ~ +1 웃음(가로 벌림)
+  s.calMouthNeutral = 0;   // 입 다물었을 때 가로폭 기준(자동 보정)
   s.eyeLOpen = 1; s.eyeROpen = 1;
   s.blinkTimer = 0;
   s.flipX = false;

@@ -78,6 +78,15 @@ function mmdLoop(width, height) {
         headBone.rotation.y = f.yaw || 0;
       }
     }
+    // 눈 깜박임 / 입 모양 모프 (PMX 표준 모프명)
+    const md = mmdModel.morphTargetDictionary, mi = mmdModel.morphTargetInfluences;
+    if (md && mi) {
+      const setM = (name, v) => { const i = md[name]; if (i !== undefined) mi[i] = Math.max(0, Math.min(1, v)); };
+      setM('まばたき', f.blink || 0);   // blink
+      setM('あ', f.aa || 0);            // mouth open (a)
+      setM('笑い', f.joy || 0);          // smile
+      setM('う', f.oh || 0);            // pucker (u)
+    }
   }
 
   if (mmdSolver) mmdSolver.update();

@@ -83,6 +83,9 @@
       if (pi.ParamBodyAngleY >= 0) pv[pi.ParamBodyAngleY] = s.headY * Math.abs(s.headY) * 100;
       if (pi.ParamMouthOpenY >= 0) pv[pi.ParamMouthOpenY] = s.mouthOpen;
       if (pi.ParamA >= 0) pv[pi.ParamA] = s.mouthOpen;
+      // 입 모양(웃음/오므림) — 지원 모델만 자동 반영
+      if (pi.ParamMouthForm >= 0) pv[pi.ParamMouthForm] = s.mouthForm;
+      if (pi.ParamMouthOpenX >= 0) pv[pi.ParamMouthOpenX] = s.mouthForm;
       if (pi.ParamEyeLOpen >= 0) pv[pi.ParamEyeLOpen] = s.eyeLOpen;
       if (pi.ParamEyeROpen >= 0) pv[pi.ParamEyeROpen] = s.eyeROpen;
       s.blinkTimer++;

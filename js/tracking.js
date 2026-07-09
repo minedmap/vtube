@@ -367,14 +367,40 @@
               s.rawY += (pitchClamp - s.rawY) * smoothFactor;
               s.headX = s.flipX ? -s.rawX : s.rawX;
               s.headY = s.rawY;
-              window.__mmdFace = { yaw: s.headX * 0.3, pitch: -s.headY * 0.3 };
+              // ── 입 벌림(세로) ──
               const mouthDist = Math.abs(lm[13].y - lm[14].y);
               const mOpen = Math.min(1, Math.max(0, (mouthDist / faceH - 0.025) * 30));
               s.mouthOpen = mOpen < 0.1 ? 0 : mOpen;
+              // ── 입 모양(가로: 웃음 +1 / 오므림 -1) ──
+              // 입꼬리(61,291) 사이 폭을 얼굴폭으로 정규화. 다물었을 때 폭을 중립 기준으로 자동 보정.
+              const mouthW = Math.hypot(lm[61].x - lm[291].x, lm[61].y - lm[291].y);
+              const mouthWRatio = mouthW / faceW;
+              if (s.mouthOpen < 0.2) {
+                if (s.calMouthNeutral === 0) s.calMouthNeutral = mouthWRatio;
+                else s.calMouthNeutral += (mouthWRatio - s.calMouthNeutral) * 0.02;
+              }
+              const neutralW = s.calMouthNeutral || 0.45;
+              let form = (mouthWRatio - neutralW) / 0.10;   // 기준보다 넓으면 웃음
+              const cornerY = (lm[61].y + lm[291].y) / 2;    // 입꼬리 높이
+              const lipCenterY = (lm[13].y + lm[14].y) / 2;  // 입 중앙 높이
+              form += ((lipCenterY - cornerY) / faceH) * 4;  // 입꼬리가 올라가면 웃음 가중
+              const targetForm = Math.max(-1, Math.min(1, form));
+              s.mouthForm += (targetForm - s.mouthForm) * 0.3; // 스무딩
+              // ── 눈 감김(flipX 시 좌우 스왑) ──
               const lEyeH = Math.abs(lm[159].y - lm[145].y) / faceH * 10;
               const rEyeH = Math.abs(lm[386].y - lm[374].y) / faceH * 10;
-              s.eyeLOpen = Math.min(1, Math.max(0.05, lEyeH));
-              s.eyeROpen = Math.min(1, Math.max(0.05, rEyeH));
+              const eyeA = Math.min(1, Math.max(0.05, lEyeH));
+              const eyeB = Math.min(1, Math.max(0.05, rEyeH));
+              s.eyeLOpen = s.flipX ? eyeB : eyeA;
+              s.eyeROpen = s.flipX ? eyeA : eyeB;
+              // MMD/VRM 로 얼굴 신호 전달(머리 + 눈 + 입)
+              window.__mmdFace = {
+                yaw: s.headX * 0.3, pitch: -s.headY * 0.3,
+                blink: Math.max(0, Math.min(1, 1 - Math.min(s.eyeLOpen, s.eyeROpen))),
+                aa: s.mouthOpen,
+                joy: Math.max(0, s.mouthForm),
+                oh: Math.max(0, -s.mouthForm)
+              };
               window.setStatus('X:'+Math.round(s.rawX*100)+' Y:'+Math.round(s.rawY*100)+' 손:'+s.handData.length);
             } else if (s.handData.length > 0 && !tracking) {
               tracking = true;
