@@ -82,7 +82,7 @@ btn.onclick=async()=>{
   fd.append('filename',selected.name);
   try{
     const xhr=new XMLHttpRequest();
-    xhr.open('POST','/u/upload');
+    xhr.open('POST','/upload-zip');
     xhr.upload.onprogress=e=>{
       if(e.lengthComputable){const p=Math.round(e.loaded/e.total*100);pbar.style.width=p+'%';ptext.textContent=p+'%';}
     };

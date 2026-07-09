@@ -1,0 +1,14 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "Sparkle.moc3",
+		"Textures": [
+			"texture_00.png",
+			"texture_01.png",
+			"texture_02.png",
+			"texture_03.png",
+			"texture_04.png",
+			"texture_05.png"
+		]
+	}
+}

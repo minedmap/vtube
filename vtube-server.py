@@ -30,7 +30,7 @@ class H(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         p = self.path.split('?')[0]
         if p == '/': p = '/index.html'
-        if p == '/upload': p = '/upload-mmd.html'
+        if p == '/upload': p = '/upload.html'
         # MMD model list
         if p == '/models/mmd/list.json':
             self._mmd_list()
@@ -52,6 +52,9 @@ class H(http.server.BaseHTTPRequestHandler):
         p = self.path.split('?')[0]
         if p == '/upload-mmd':
             self._upload_mmd()
+            return
+        if p == '/upload-zip':
+            self._upload_zip()
             return
         self.send_error(404)
     def do_OPTIONS(self):
@@ -129,7 +132,8 @@ class H(http.server.BaseHTTPRequestHandler):
                     zf.extractall(tmp)
                 for root, dirs, files in os.walk(tmp):
                     for f in files:
-                        if f.endswith(('.pmx', '.pmd', '.vmd')):
+                        fn = f.lower()
+                        if fn.endswith(('.pmx', '.pmd', '.vmd')):
                             src = os.path.join(root, f)
                             dst = os.path.join(MMD_DIR, f)
                             if os.path.exists(dst):
@@ -147,6 +151,36 @@ class H(http.server.BaseHTTPRequestHandler):
             fp = os.path.join(MMD_DIR, fname)
             with open(fp, 'wb') as f: f.write(fdata)
             self._json({'ok': True, 'path': f'/models/mmd/{fname}'})
+    def _upload_zip(self):
+        import zipfile, tempfile, shutil
+        clen = int(self.headers.get('Content-Length', 0)) or 0
+        body = self.rfile.read(clen)
+        tmp = tempfile.mkdtemp()
+        try:
+            zippath = os.path.join(tmp, 'upload.zip')
+            with open(zippath, 'wb') as f: f.write(body)
+            extracted = []
+            with zipfile.ZipFile(zippath) as zf:
+                zf.extractall(tmp)
+            for root, dirs, files in os.walk(tmp):
+                for f in files:
+                    fn = f.lower()
+                    if fn.endswith(('.pmx', '.pmd', '.vmd', '.moc3', '.model3.json', '.physics3.json', '.exp3.json', '.cdi3.json', '.motion3.json', '.mtn', '.vrm')) or fn.endswith(('.png', '.jpg', '.webp')):
+                        src = os.path.join(root, f)
+                        dst = os.path.join(ROOT, 'models', f)
+                        if os.path.exists(dst):
+                            base, ext2 = os.path.splitext(f)
+                            n = 1
+                            while os.path.exists(os.path.join(ROOT, 'models', f'{base}_{n}{ext2}')):
+                                n += 1
+                            dst = os.path.join(ROOT, 'models', f'{base}_{n}{ext2}')
+                        shutil.copy2(src, dst)
+                        extracted.append(os.path.basename(dst))
+            self._json({'ok': True, 'modelName': extracted[0] if extracted else 'unknown', 'files': extracted})
+        except Exception as e:
+            self._json({'ok': False, 'error': str(e)})
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
     def _json(self, d, code=200):
         data = json.dumps(d).encode()
         self.send_response(code)
