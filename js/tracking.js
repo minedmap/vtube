@@ -17,7 +17,14 @@
 
   camBtn.onclick = async () => {
     if (s.stream) {
-      s.stream.getTracks().forEach(t=>t.stop());
+      if (s.ipCamMode && s._ipImg) {
+        s._ipImg.remove();
+        delete s._ipImg;
+      } else {
+        s.stream.getTracks().forEach(t=>t.stop());
+      }
+      s.ipCamMode = false;
+      s.ipCamUrl = '';
       s.stream = null;
       camBox.style.display = 'none';
       boxToggle.style.display = 'none';
@@ -29,18 +36,47 @@
     if (!navigator.mediaDevices) return window.setError('HTTPS 필요 (cloudflare tunnel 사용)');
     window.setStatus('카메라 권한 요청...');
     try {
-      s.stream = await navigator.mediaDevices.getUserMedia({
-        video: { width:640, height:480, facingMode:'user' }
-      });
+      // IP cam mode
+      if (s.ipCamMode && s.ipCamUrl) {
+        s.stream = {};
+        const ipImg = new Image();
+        ipImg.style.display = 'none';
+        document.body.appendChild(ipImg);
+        s._ipImg = ipImg;
+        ipImg.onload = () => {
+          camBox.style.display = 'block';
+          boxToggle.style.display = 'block';
+          s.boxVisible = true;
+          boxToggle.textContent = '박스 OFF';
+          camBtn.textContent = 'CAM OFF';
+          window.setStatus('IP캠 트래킹 시작...');
+        };
+        ipImg.onerror = () => {
+          window.setError('IP캠 연결 실패: URL 확인');
+          camBtn.textContent = 'CAM ON';
+          ipImg.remove();
+          delete s._ipImg;
+          s.stream = null;
+        };
+        ipImg.src = s.ipCamUrl;
+      } else {
+        s.stream = await navigator.mediaDevices.getUserMedia({
+          video: s.selectedCameraId
+            ? { width:640, height:480, deviceId: { exact: s.selectedCameraId } }
+            : { width:640, height:480, facingMode:'user' }
+        });
+      }
       const v = document.getElementById('cam');
-      v.srcObject = s.stream;
-      await v.play();
-      camBox.style.display = 'block';
-      boxToggle.style.display = 'block';
-      s.boxVisible = true;
-      boxToggle.textContent = '박스 OFF';
-      camBtn.textContent = 'CAM OFF';
-      window.setStatus('트래킹 시작...');
+      if (!s._ipImg) {
+        v.srcObject = s.stream;
+        await v.play();
+        camBox.style.display = 'block';
+        boxToggle.style.display = 'block';
+        s.boxVisible = true;
+        boxToggle.textContent = '박스 OFF';
+        camBtn.textContent = 'CAM OFF';
+        window.setStatus('트래킹 시작...');
+      }
 
       const ov = document.getElementById('ov'), oc = ov.getContext('2d', {willReadFrequently: false});
       const CW = 640, CH = 480;
@@ -86,12 +122,13 @@
       function loop() {
         try {
           if (tabHidden) { requestAnimationFrame(loop); return; }
-          if (v.readyState >= 2) {
+          const src = s._ipImg || v;
+          if (s._ipImg ? (s._ipImg.complete && s._ipImg.naturalWidth > 0) : v.readyState >= 2) {
             oc.clearRect(0, 0, CW, CH);
-            oc.drawImage(v, 0, 0, CW, CH);
+            oc.drawImage(src, 0, 0, CW, CH);
             let faceResult = null;
             if (s.faceOn) {
-              const fr = s.faceLandmarker.detectForVideo(v, performance.now() + 0.1);
+              const fr = s.faceLandmarker.detectForVideo(src, performance.now() + 0.1);
               if (fr.faceLandmarks && fr.faceLandmarks.length > 0) {
                 faceResult = fr;
                 s.lastFaceLM = fr.faceLandmarks[0];
@@ -105,7 +142,7 @@
               for (let i = 0; i < lm.length; i++) { oc.beginPath(); oc.arc(lm[i].x*CW, lm[i].y*CH, 2, 0, Math.PI*2); oc.fill(); }
             }
             if (s.handOn) {
-              const hr = s.handLandmarker.detectForVideo(v, performance.now());
+              const hr = s.handLandmarker.detectForVideo(src, performance.now());
               const newVal = (hr && hr.landmarks && hr.landmarks.length > 0 &&
                 hr.handednesses?.length > 0 &&
                 hr.handednesses.some((h, i) => h[0]?.score > 0.6)) ? hr : null;
