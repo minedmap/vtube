@@ -61,13 +61,7 @@
     }
     if (idx.Param15 >= 0) pVals[idx.Param15] = 0.0;
     if (idx.Param21 >= 0) pVals[idx.Param21] = 0.0;
-    // Sparkle 기본 자세 보정 (모션 꺼져서 moc3 기본값이 이상)
-    if (cfg.label === 'Sparkle') {
-      if (idx.Param25 >= 0) pVals[idx.Param25] = 0;  // 손 자세
-      if (idx.Param26 >= 0) pVals[idx.Param26] = 1.0; // 다리 정상
-      if (idx.Param22 >= 0) pVals[idx.Param22] = 1.0; // 머리 정면
-      if (idx.Param139 >= 0) pVals[idx.Param139] = 0;  // 공
-    }
+    // 모델별 기본 자세 보정
     if (!window.__armPv) window.__armPv = {};
 
     if (im.expressionManager) { im.expressionManager.stopAll(); im.expressionManager.updateParameters = () => {}; }

@@ -10,13 +10,6 @@ const EXPRESSION_PARAMS = {
 };
 
 const MODEL_EXPR_OVERRIDES = {
-  Sparkle: {
-    happy:     { Param25: 0.5 },
-    sad:       { Param25: 0 },
-    angry:     { Param25: 0.8 },
-    surprised: { Param25: 0.3 },
-    neutral:   { Param25: 0 }
-  }
 };
 
 let lastExpr = null;
@@ -86,6 +79,13 @@ function updateExpressionFromFace(modelLabel) {
   }
 
   const expr = classifyExpression(lm);
+  // debug
+  const debug = classifyExpression(lm);
+  const s2 = window.__state;
+  if (s2.statusEl) {
+    const base = s2.statusEl.textContent.replace(/ EXPR:.*/, '');
+    s2.statusEl.textContent = base + ' EXPR:' + debug;
+  }
   if (expr === lastExpr) { exprStable++; }
   else { lastExpr = expr; exprStable = 0; return; }
 
