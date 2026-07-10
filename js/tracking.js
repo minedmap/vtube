@@ -403,7 +403,7 @@
                 joy: Math.max(0, s.mouthForm),
                 oh: Math.max(0, -s.mouthForm)
               };
-              window.setStatus('X:'+Math.round(s.rawX*100)+' Y:'+Math.round(s.rawY*100)+' 손:'+s.handData.length);
+              window.setStatus('X:'+Math.round(s.rawX*100)+' Y:'+Math.round(s.rawY*100)+' 손:'+s.handData.length+' EXPR:'+(window.__exprDebug||'?'));
             } else if (s.handData.length > 0 && !tracking) {
               tracking = true;
               window.setStatus('트래킹 중');

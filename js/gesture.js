@@ -79,13 +79,7 @@ function updateExpressionFromFace(modelLabel) {
   }
 
   const expr = classifyExpression(lm);
-  // debug
-  const debug = classifyExpression(lm);
-  const s2 = window.__state;
-  if (s2.statusEl) {
-    const base = s2.statusEl.textContent.replace(/ EXPR:.*/, '');
-    s2.statusEl.textContent = base + ' EXPR:' + debug;
-  }
+  window.__exprDebug = expr;
   if (expr === lastExpr) { exprStable++; }
   else { lastExpr = expr; exprStable = 0; return; }
 
