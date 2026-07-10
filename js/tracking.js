@@ -97,7 +97,7 @@
 
       const HCONN = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17]];
 
-      function fingerCurlAngle(worldHl, fi) {
+      window.fingerCurlAngle = function fingerCurlAngle(worldHl, fi) {
         if (!worldHl) return 0.5;
         const tips = [4,8,12,16,20], mcps = [2,5,9,13,17];
         const tip = worldHl[tips[fi]], mcp = worldHl[mcps[fi]], w = worldHl[0], midMcp = worldHl[9];
@@ -340,6 +340,10 @@
                   if (pi['Param29'] >= 0) pv[pi['Param29']] = (isRight ? 1:-1) * wx * 20;
                   if (pi['Param30'] >= 0) pv[pi['Param30']] = wy * 20;
                   if (pi['Param31'] >= 0) pv[pi['Param31']] = (isRight ? s.armR.open : s.armL.open) * 30;
+                }
+                // ── gesture → expression ──
+                if (window.__updateGesture) {
+                  window.__updateGesture(s.handData, cm, s.modelLabel);
                 }
               }
             }
