@@ -102,6 +102,10 @@
           if (pi.ParamEyeLOpen >= 0) pv[pi.ParamEyeLOpen] = s.eyeLOpen;
           if (pi.ParamEyeROpen >= 0) pv[pi.ParamEyeROpen] = s.eyeROpen;
         }
+        // face expression classifier (표정 분류값이 raw tracking 덮어씀)
+        if (window.__updateExpression) {
+          window.__updateExpression(cfg.label);
+        }
       }
       return ret;
     };

@@ -341,10 +341,8 @@
                   if (pi['Param30'] >= 0) pv[pi['Param30']] = wy * 20;
                   if (pi['Param31'] >= 0) pv[pi['Param31']] = (isRight ? s.armR.open : s.armL.open) * 30;
                 }
-                // ── gesture → expression ──
-                if (window.__updateGesture) {
-                  window.__updateGesture(s.handData, cm, s.modelLabel);
-                }
+                // ── face expression ──
+                // (cubism-core.js im.update에서 처리)
               }
             }
             // face tracking data
