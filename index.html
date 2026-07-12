@@ -12,9 +12,11 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0a0a0f;overflow:hidden;height:100vh}
 #wrap{position:relative;width:100vw;height:100vh;background:#1a1a2e;overflow:hidden}
-/* OBS 투명 모드 (?obs): 배경 투명 + UI 숨김 */
+/* OBS 투명 모드 (?obs): 배경 투명 */
 html.obs,html.obs body,html.obs #wrap{background:transparent!important}
-html.obs #wrap>*:not(#c):not(#c3d):not(#error):not(#camBox){display:none!important}
+/* UI 는 평소엔 투명해 캡처에 안 잡히고, 소스에 마우스를 올리면(OBS 상호작용) 나타남 */
+html.obs #wrap>*:not(#c):not(#c3d):not(#error):not(#camBox){opacity:0;transition:opacity .12s;pointer-events:none}
+html.obs #wrap:hover>*:not(#c):not(#c3d):not(#error):not(#camBox){opacity:1;pointer-events:auto}
 /* 카메라 박스는 트래킹 위해 살려두되 화면 밖으로 (display:none 이면 비디오 디코딩 정지) */
 html.obs #camBox{display:block!important;left:-99999px!important;top:0!important;right:auto!important;pointer-events:none}
 canvas{width:100%!important;height:100%!important;display:block}
