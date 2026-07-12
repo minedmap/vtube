@@ -80,9 +80,11 @@
       // face tracking 덮어쓰기 (카메라 있을 때만)
       if (s.stream !== null) {
         const pi = idx, pv = pVals;
+        const invertX = cfg.label === 'Huohuo' ? -1 : 1;
+        const invertY = cfg.label === 'Huohuo' ? -1 : 1;
         if (s.headX || s.headY) {
-          if (pi.ParamAngleX >= 0) pv[pi.ParamAngleX] = s.headX * 68;
-          if (pi.ParamAngleY >= 0) pv[pi.ParamAngleY] = s.headY * 114;
+          if (pi.ParamAngleX >= 0) pv[pi.ParamAngleX] = s.headX * 68 * invertX;
+          if (pi.ParamAngleY >= 0) pv[pi.ParamAngleY] = s.headY * 114 * invertY;
           if (pi.ParamBodyAngleX >= 0) pv[pi.ParamBodyAngleX] = s.headX * Math.abs(s.headX) * 80;
           if (pi.ParamBodyAngleY >= 0) pv[pi.ParamBodyAngleY] = s.headY * Math.abs(s.headY) * 100;
         }
