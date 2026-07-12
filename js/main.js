@@ -20,10 +20,12 @@ async function init() {
   if (!window.PIXI.live2d || !window.PIXI.live2d.Live2DModel) return setError('live2d 없음');
   setStatus('로딩...');
 
+  // OBS 브라우저 소스용 투명 모드: URL 에 ?obs 붙이면 배경 투명
+  const OBS = new URLSearchParams(location.search).has('obs');
   s.app = new PIXI.Application({
     view: document.getElementById('c'),
     width: window.innerWidth, height: window.innerHeight,
-    backgroundColor: 0x1a1a2e, antialias: true,
+    backgroundColor: 0x1a1a2e, backgroundAlpha: OBS ? 0 : 1, antialias: true,
     resolution: devicePixelRatio||1, autoDensity: true,
     resizeTo: document.getElementById('wrap'),
     premultipliedAlpha: true
@@ -67,6 +69,13 @@ async function init() {
     setStatus('모델 로더 없음');
   }
   setStatus('준비 완료');
+
+  // OBS 모드: UI 가 숨겨져 있어 CAM 버튼을 누를 수 없으므로 카메라 자동 시작
+  // (OBS 브라우저 소스는 카메라 권한을 자동 허용함)
+  if (OBS) {
+    const camBtn = document.getElementById('camBtn');
+    if (camBtn && !s.stream) camBtn.click();
+  }
 }
 
 window.addEventListener('load', () => {
