@@ -106,7 +106,7 @@
     s.currentModel = m;
     s.modelLabel = cfg.label;
     window.__m = m;
-    document.getElementById('modelSel').value = '' + s.modelIdx;
+    if (window.__updateModelSel) window.__updateModelSel(s.modelIdx);
     return m;
   }
 

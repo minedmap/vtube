@@ -37,7 +37,10 @@ canvas{width:100%!important;height:100%!important;display:block}
   <div id="status">로딩 중...</div>
   <div id="error"></div>
   <button id="camBtn">CAM ON</button>
-  <select id="modelSel" style="position:absolute;top:10px;left:78px;z-index:20;padding:4px 6px;font:11px sans-serif;background:#333;color:#fff;border:none;border-radius:4px;cursor:pointer;outline:none;height:28px"></select>
+  <div id="modelSel" style="position:absolute;top:10px;left:78px;z-index:40;font:11px sans-serif">
+    <button id="modelSelBtn" style="padding:4px 8px;font:11px sans-serif;background:#333;color:#fff;border:none;border-radius:4px;cursor:pointer;height:28px;min-width:48px;white-space:nowrap">모델 ▾</button>
+    <div id="modelSelMenu" style="display:none;position:absolute;top:31px;left:0;background:#222;border-radius:4px;overflow:hidden auto;box-shadow:0 2px 8px rgba(0,0,0,0.5);min-width:120px;max-height:60vh"></div>
+  </div>
   <button id="ctrlShowBtn" style="position:absolute;top:10px;left:132px;z-index:30;padding:4px 6px;font:11px sans-serif;background:#333;color:#fff;border:none;border-radius:4px;cursor:pointer;height:28px;line-height:18px;width:50px" onclick="var c=document.getElementById('ctrl');c.style.display=c.style.display==='none'?'flex':'none'" title="Ctrl 표시">panel</button>
   <button id="devBtn" style="position:absolute;top:10px;left:186px;z-index:30;padding:4px 8px;font:11px sans-serif;background:#333;color:#fff;border:none;border-radius:4px;cursor:pointer;height:28px;line-height:18px" onclick="var d=document.getElementById('devPanel');d.style.display=d.style.display==='none'?'flex':'none'" title="장치 선택">⚙ dev</button>
   <div id="devPanel" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:35;background:rgba(0,0,0,0.85);padding:12px 16px;border-radius:8px;font:11px sans-serif;gap:8px;flex-direction:column;min-width:240px;max-width:90vw">

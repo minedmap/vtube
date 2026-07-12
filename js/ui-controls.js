@@ -6,22 +6,59 @@
   const s = window.__state;
   const MODELS = window.__MODELS;
 
-  // ── populate model dropdown ──
-  const sel = $('modelSel');
-  MODELS.forEach((m,i) => { sel.innerHTML += `<option value="${i}">${m.label}</option>`; });
-  sel.value = '0';
+  // ── custom model menu (native <select> popups don't render in OBS/CEF) ──
+  const selBtn = $('modelSelBtn');
+  const selMenu = $('modelSelMenu');
+
+  // populate menu items
+  MODELS.forEach((m,i) => {
+    const item = document.createElement('div');
+    item.dataset.idx = i;
+    item.textContent = m.label;
+    item.style.cssText = 'padding:6px 10px;color:#fff;cursor:pointer;white-space:nowrap';
+    item.onmouseenter = () => { item.style.background = '#4a6cf7'; };
+    item.onmouseleave = () => { item.style.background = (i === s.modelIdx) ? '#3a3a55' : ''; };
+    item.onclick = () => { closeMenu(); selectModel(i); };
+    selMenu.appendChild(item);
+  });
+
+  function highlightActive() {
+    [...selMenu.children].forEach(el => {
+      el.style.background = (+el.dataset.idx === s.modelIdx) ? '#3a3a55' : '';
+    });
+  }
+
+  function openMenu() { selMenu.style.display = 'block'; highlightActive(); }
+  function closeMenu() { selMenu.style.display = 'none'; }
+
+  selBtn.onclick = (e) => {
+    e.stopPropagation();
+    selMenu.style.display === 'none' ? openMenu() : closeMenu();
+  };
+  document.addEventListener('click', (e) => {
+    if (!$('modelSel').contains(e.target)) closeMenu();
+  });
+
+  // reflect current model on the button (also called from cubism-core)
+  window.__updateModelSel = (idx) => {
+    const m = MODELS[idx];
+    if (m) selBtn.textContent = m.label + ' ▾';
+    highlightActive();
+  };
+  window.__updateModelSel(0);
 
   // ── model switch ──
-  sel.onchange = async () => {
+  async function selectModel(idx) {
     if (s.stream) return;
-    s.modelIdx = parseInt(sel.value);
+    s.modelIdx = idx;
+    window.__updateModelSel(idx);
     if (window.__loadModel) await window.__loadModel(MODELS[s.modelIdx]);
     $('sizeSlider').value = Math.round((s.currentModel?.scale?.x || 0.2) * 100);
     $('sizeVal').textContent = $('sizeSlider').value;
     $('ySlider').value = 0;
     $('yVal').textContent = '0';
     window.setStatus('준비 완료');
-  };
+  }
 
   // ── size slider ──
   $('sizeSlider').oninput = () => {
