@@ -1,0 +1,27 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "火花.moc3",
+		"Textures": [
+			"火花.4096/texture_00.png",
+			"火花.4096/texture_01.png"
+		],
+		"Physics": "火花.physics3.json",
+		"DisplayInfo": "火花.cdi3.json"
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": []
+		},
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"ParamEyeLOpen",
+				"ParamEyeROpen"
+			]
+		}
+	]
+}
