@@ -399,9 +399,14 @@
                 s._eyeBsL = ebs.findIndex(c => c.categoryName === 'eyeBlinkLeft');  // lm386/374 쪽 눈
               }
               if (ebs && s._eyeBsR >= 0 && s._eyeBsL >= 0) {
-                // score: 뜬 상태 ~0.05, 완전 감음 ~0.38+ → 0.08~0.38 구간을 1~0으로 매핑
-                let rawA = 1 - Math.min(1, Math.max(0, (ebs[s._eyeBsR].score - 0.08) / 0.30));
-                let rawB = 1 - Math.min(1, Math.max(0, (ebs[s._eyeBsL].score - 0.08) / 0.30));
+                const scR = ebs[s._eyeBsR].score, scL = ebs[s._eyeBsL].score;
+                // 좌우 rest score가 비대칭일 수 있어(카메라 각도·안경) 눈별 최소 score를 기준선으로 자동 보정.
+                // 최소값은 즉시 반영, 위로는 서서히 복귀(약 30초, 조명 변화 적응)
+                s._eyeBaseR = s._eyeBaseR === undefined ? scR : Math.min(scR, s._eyeBaseR + 0.0002);
+                s._eyeBaseL = s._eyeBaseL === undefined ? scL : Math.min(scL, s._eyeBaseL + 0.0002);
+                // 기준선+0.03 ~ 기준선+0.33 구간을 1~0으로 매핑
+                let rawA = 1 - Math.min(1, Math.max(0, (scR - s._eyeBaseR - 0.03) / 0.30));
+                let rawB = 1 - Math.min(1, Math.max(0, (scL - s._eyeBaseL - 0.03) / 0.30));
                 // 윙크: 한쪽만 감으면 반대쪽 score도 따라 오르므로 뜬 쪽은 완전 오픈으로 스냅.
                 // 경계에서 스냅이 토글되며 떨리지 않도록 히스테리시스(진입 0.45 / 해제 0.25)
                 const eyeDiff = rawA - rawB;
