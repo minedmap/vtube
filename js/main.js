@@ -12,7 +12,7 @@ const MODELS = window.__MODELS = window.__MODELS || [
   { path: '/models/ellot/ellot.model3.json', label: 'ellot', anchor: [0.5, 0.45], scale: 0.2 },
   { path: '/models/魔女/魔女.model3.json', label: '魔女', anchor: [0.5, 0.45], scale: 0.2 },
   { path: '/models/火花/火花.model3.json', label: '火花', anchor: [0.5, 0.45], scale: 0.2 },
-  { path: '/models/RuanMei/1208阮梅1-12.20 - 动画.model3.json', label: 'RuanMei', anchor: [0.5, 0.45], scale: 0.2 },
+  { path: '/models/RuanMei/rm.model3.json', label: 'RuanMei', anchor: [0.5, 0.45], scale: 0.2 },
 ];
 
 async function init() {
