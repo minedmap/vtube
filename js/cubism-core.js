@@ -81,6 +81,15 @@
       if (m.focus) m.focus = () => {};
     }
 
+    // 자동 눈깜빡임(eyeBlink)은 렌더 직전(saveParameters 이후)에 눈 파라미터를 덮어써서
+    // 트래킹 값이 무시됨 → 카메라 켜져 있을 때만 비활성화 (카메라 없으면 자동 깜빡임 유지)
+    if (im.eyeBlink) {
+      const origBlink = im.eyeBlink.updateParameters.bind(im.eyeBlink);
+      im.eyeBlink.updateParameters = function(model, dt) {
+        if (s.stream === null) origBlink(model, dt);
+      };
+    }
+
     const origUpdate = im.update;
     im.update = function() {
       // physics+호흡+눈깜빡임 (origUpdate 안에 있음)
