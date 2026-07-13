@@ -103,7 +103,7 @@ canvas{width:100%!important;height:100%!important;display:block}
     <input type="range" id="volSlider" min="0" max="200" value="100" style="display:none;width:60px;height:4px;accent-color:#4a6cf7">
   </div>
 </div>
-  <div id="camBox"><video id="cam" autoplay playsinline></video><canvas id="ov"></canvas></div>
+  <div id="camBox" style="display:none"><video id="cam" autoplay playsinline></video><canvas id="ov"></canvas></div>
 </div>
 
 <!-- Libs -->
@@ -128,13 +128,13 @@ window.process = {env:{NODE_ENV:'production'},argv:[],on:function(){},versions:{
 <script type="module" src="/js/mmd-loader.js"></script>
 
 <!-- App modules (order matters) -->
-<script src="/js/state.js"></script>
+<script src="/js/state.js?v=3"></script>
 <script src="/js/vts-ws.js"></script>
 <script src="/js/cubism-core.js?v=2"></script>
 <script src="/js/main.js?v=2"></script>
 <script src="/js/ui-controls.js"></script>
 <script src="/js/device-select.js"></script>
-<script src="/js/tracking.js"></script>
+<script src="/js/tracking.js?v=3"></script>
 <script src="/js/gesture.js"></script>
 <script src="/js/expression.js"></script>
 <script src="/js/voice-changer.js"></script>
