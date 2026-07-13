@@ -1,10 +1,11 @@
 // ── Emotion → model-specific parameter mapper ──
 // Uses gesture.js's classification (`window.__exprScores`)
-// Only adds model-custom params (Param104, Param109, ParamCheek, etc.)
+// Only adds model-custom params (Param104, Param109, ParamCheekPuff, etc.)
 // Standard params already handled by gesture.js
 
 (function() {
   const gestureUpdate = window.__updateExpression;
+  let prevState = null;  // track previous emotion to reset only its params
 
   window.__updateExpression = function(modelLabel) {
     // First: gesture.js runs its full classifier (sets __exprScores + standard params)
@@ -46,12 +47,13 @@
       if (e.val > maxVal) { dominant = e.name; maxVal = e.val; }
     }
 
-    // Reset ALL custom params for this model first
-    for (const stateName of Object.keys(modelCfg)) {
-      for (const paramId of Object.keys(modelCfg[stateName])) {
+    // Reset ONLY the PREVIOUS emotion's params (not all states)
+    if (prevState && prevState !== dominant && modelCfg[prevState]) {
+      for (const paramId of Object.keys(modelCfg[prevState])) {
         if (pi[paramId] >= 0) pv[pi[paramId]] = 0;
       }
     }
+    prevState = dominant;
 
     // Apply custom params for dominant emotion
     const targetMap = modelCfg[dominant];
@@ -63,6 +65,8 @@
 
     // Debug
     const emoji = { neutral:'😐', happy:'😊', surprised:'😮', angry:'😠', sad:'😢', love:'🥰', blush:'☺️' };
-    window.__emotionDebug = `${emoji[dominant]||'?'} ${dominant} ${maxVal.toFixed(2)} h${h.toFixed(2)} su${su.toFixed(2)} a${a.toFixed(2)} sa${sa.toFixed(2)}`;
+    const dbg = `${emoji[dominant]||'?'} ${dominant} ${maxVal.toFixed(2)} h${h.toFixed(2)} su${su.toFixed(2)} a${a.toFixed(2)} sa${sa.toFixed(2)}`;
+    window.__emotionDebug = dbg;
+    window.__exprDebug = dbg;
   };
 })();
