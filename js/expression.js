@@ -109,11 +109,11 @@
       }
       const lm = s.lastFaceLM;
       if (lm && lm.length > 454) {
-        // Cheek width / face width. Puffed > ~0.65, normal ~0.55
+        // Cheek width / face width. Measured: rest ~0.68, full puff ~0.71
         const faceW = Math.abs(lm[454].x - lm[234].x);
         const cheekW = Math.abs(lm[280].x - lm[50].x);
         ratio = cheekW / faceW;
-        const lmVal = ratio > 0.66 ? Math.min(1, (ratio - 0.66) * 8) : 0;
+        const lmVal = ratio > 0.69 ? Math.min(1, (ratio - 0.69) * 50) : 0;
         puffVal = Math.max(puffVal, lmVal);
       }
       s._puffDbg = ` bs:${bsScore.toFixed(2)} r:${ratio.toFixed(2)}`;
