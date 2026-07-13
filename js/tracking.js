@@ -416,9 +416,9 @@
                 } else if (Math.abs(eyeDiff) < 0.25) s._winkSide = 0;
                 if (s._winkSide === 1) rawA = 1;
                 else if (s._winkSide === -1) rawB = 1;
-                // 가벼운 스무딩: 잔떨림 제거, 깜빡임 반응성 유지
-                s._eyeSmA = s._eyeSmA === undefined ? rawA : s._eyeSmA + (rawA - s._eyeSmA) * 0.5;
-                s._eyeSmB = s._eyeSmB === undefined ? rawB : s._eyeSmB + (rawB - s._eyeSmB) * 0.5;
+                // 감는 방향은 즉시 반영(깜빡임 반응성), 뜨는 방향만 스무딩(잔떨림 제거)
+                s._eyeSmA = (s._eyeSmA === undefined || rawA < s._eyeSmA) ? rawA : s._eyeSmA + (rawA - s._eyeSmA) * 0.5;
+                s._eyeSmB = (s._eyeSmB === undefined || rawB < s._eyeSmB) ? rawB : s._eyeSmB + (rawB - s._eyeSmB) * 0.5;
                 eyeA = s._eyeSmA;
                 eyeB = s._eyeSmB;
               } else {
@@ -427,8 +427,8 @@
                 eyeA = Math.min(1, Math.max(0, lEyeH));
                 eyeB = Math.min(1, Math.max(0, rEyeH));
               }
-              s.eyeLOpen = s.flipX ? eyeB : eyeA;
-              s.eyeROpen = s.flipX ? eyeA : eyeB;
+              s.eyeLOpen = s.flipX ? eyeA : eyeB;
+              s.eyeROpen = s.flipX ? eyeB : eyeA;
               window.setStatus('눈A:'+eyeA.toFixed(2)+' 눈B:'+eyeB.toFixed(2)+' X:'+Math.round(s.rawX*100)+' Y:'+Math.round(s.rawY*100)+' 손:'+s.handData.length+' EXPR:'+(window.__exprDebug||'?'));
               window.__mmdFace = {
                 yaw: s.headX * 0.3, pitch: -s.headY * 0.3,
