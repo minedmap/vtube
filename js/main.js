@@ -11,7 +11,6 @@ const MODELS = window.__MODELS = window.__MODELS || [
   { path: '/models/白发天使/曲奇小羊.model3.json', label: '曲奇小羊', anchor: [0.5, 0.45], scale: 0.2 },
   { path: '/models/ellot/ellot.model3.json', label: 'ellot', anchor: [0.5, 0.45], scale: 0.2 },
   { path: '/models/魔女/魔女.model3.json', label: '魔女', anchor: [0.5, 0.45], scale: 0.2 },
-  { path: '/models/神宫白子模型/面饼0.model3.json', label: '神宫白子', anchor: [0.5, 0.45], scale: 0.2 },
 ];
 
 async function init() {
