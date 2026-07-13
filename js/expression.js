@@ -82,11 +82,11 @@
       }
       // ── Restore eye tracking (blink) after expression override ──
       if (pi.ParamEyeLOpen >= 0 && s.eyeLOpen !== undefined) {
-        const eyeScale = modelLabel === 'huohuo' ? s.eyeLOpen * s.eyeLOpen : s.eyeLOpen;
+        const eyeScale = modelLabel === 'huohuo' ? s.eyeLOpen * s.eyeLOpen : Math.min(2.0, s.eyeLOpen * 1.8);
         pv[pi.ParamEyeLOpen] = eyeScale;
       }
       if (pi.ParamEyeROpen >= 0 && s.eyeROpen !== undefined) {
-        const eyeScaleR = modelLabel === 'huohuo' ? s.eyeROpen * s.eyeROpen : s.eyeROpen;
+        const eyeScaleR = modelLabel === 'huohuo' ? s.eyeROpen * s.eyeROpen : Math.min(2.0, s.eyeROpen * 1.8);
         pv[pi.ParamEyeROpen] = eyeScaleR;
       }
     }

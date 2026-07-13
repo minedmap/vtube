@@ -103,9 +103,9 @@
           if (pi.ParamMouthOpenX >= 0) pv[pi.ParamMouthOpenX] = s.mouthForm;
         }
         if (s.eyeLOpen !== undefined) {
-          // Huohuo eye range may be wider → square for tighter close
-          const eyeScale = cfg.label === 'huohuo' ? s.eyeLOpen * s.eyeLOpen : s.eyeLOpen;
-          const eyeScaleR = cfg.label === 'huohuo' ? s.eyeROpen * s.eyeROpen : s.eyeROpen;
+          // Scale: MediaPipe 0-1 → model parameter range (many models use 0-1.9)
+          const eyeScale = cfg.label === 'huohuo' ? s.eyeLOpen * s.eyeLOpen : Math.min(2.0, s.eyeLOpen * 1.8);
+          const eyeScaleR = cfg.label === 'huohuo' ? s.eyeROpen * s.eyeROpen : Math.min(2.0, s.eyeROpen * 1.8);
           if (pi.ParamEyeLOpen >= 0) pv[pi.ParamEyeLOpen] = eyeScale;
           if (pi.ParamEyeROpen >= 0) pv[pi.ParamEyeROpen] = eyeScaleR;
         }
