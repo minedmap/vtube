@@ -139,6 +139,9 @@
   function applyToModel(model, modelLabel) {
     const pi = model._paramIdx;
     if (!pi) return;
+    // exclusive-key model: gesture.js emotion params not needed — expression.js handles it
+    const cfg = window.__EMOTION_CFG;
+    if (cfg && cfg[modelLabel] && cfg[modelLabel].exclusiveKeys) return;
     const im = model.internalModel;
     if (!im || !im.coreModel || !im.coreModel._model) return;
     const pv = im.coreModel._model.parameters.values;
