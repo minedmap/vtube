@@ -57,8 +57,8 @@
         if (pid2 === 'Part70' || pid2 === 'Part59' || pid2 === 'Part48') {
           pts.opacities[pi2] = 1.0;
         }
-        // watermark (槿絮水印.png)
-        if (pid2 === 'Part19') pts.opacities[pi2] = 0;
+        // watermark (槿絮水印.png, 夜墨ww黑色.png)
+        if (pid2 === 'Part19' || pid2 === 'Part20') pts.opacities[pi2] = 0;
       }
     }
     if (idx.Param15 >= 0) pVals[idx.Param15] = 0.0;
@@ -114,7 +114,7 @@
         const __pts = im.coreModel._model.parts;
         if (__pts && __pts.ids) {
           for (let __pi = 0; __pi < __pts.ids.length; __pi++) {
-            if (__pts.ids[__pi] === 'Part19') __pts.opacities[__pi] = 0;
+            if (__pts.ids[__pi] === 'Part19' || __pts.ids[__pi] === 'Part20') __pts.opacities[__pi] = 0;
           }
         }
       }
