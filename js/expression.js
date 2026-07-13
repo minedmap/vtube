@@ -80,6 +80,15 @@
             if (pi[pid] >= 0) pv[pi[pid]] = val * maxVal;
         }
       }
+      // ── Restore eye tracking (blink) after expression override ──
+      if (pi.ParamEyeLOpen >= 0 && s.eyeLOpen !== undefined) {
+        const eyeScale = modelLabel === 'huohuo' ? s.eyeLOpen * s.eyeLOpen : s.eyeLOpen;
+        pv[pi.ParamEyeLOpen] = eyeScale;
+      }
+      if (pi.ParamEyeROpen >= 0 && s.eyeROpen !== undefined) {
+        const eyeScaleR = modelLabel === 'huohuo' ? s.eyeROpen * s.eyeROpen : s.eyeROpen;
+        pv[pi.ParamEyeROpen] = eyeScaleR;
+      }
     }
 
     // ── Cheek puff (independent detector) ──
