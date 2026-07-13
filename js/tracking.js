@@ -391,8 +391,8 @@
               // ── 눈 감김(flipX 시 좌우 스왑) ──
               const lEyeH = Math.abs(lm[159].y - lm[145].y) / faceH * 10;
               const rEyeH = Math.abs(lm[386].y - lm[374].y) / faceH * 10;
-              const eyeA = Math.min(1, Math.max(0.05, lEyeH));
-              const eyeB = Math.min(1, Math.max(0.05, rEyeH));
+              const eyeA = Math.min(1, Math.max(0, lEyeH));
+              const eyeB = Math.min(1, Math.max(0, rEyeH));
               s.eyeLOpen = s.flipX ? eyeB : eyeA;
               s.eyeROpen = s.flipX ? eyeA : eyeB;
               // MMD/VRM 로 얼굴 신호 전달(머리 + 눈 + 입)
