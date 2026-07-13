@@ -8,6 +8,7 @@ const MODELS = window.__MODELS = window.__MODELS || [
   { path: '/models/Frieren/Frieren.model3.json', label: 'Frieren', anchor: [0.5, 0.45], scale: 0.2 },
   { path: '/models/Hiyori/Hiyori.model3.json', label: 'Hiyori', anchor: [0.5, 0.15], scale: 0.22 },
   { path: '/models/薇薇安/薇薇安.model3.json', label: 'vivian', anchor: [0.5, 0.45], scale: 0.2 },
+  { path: '/models/白发天使/曲奇小羊.model3.json', label: '曲奇小羊', anchor: [0.5, 0.45], scale: 0.2 },
 ];
 
 async function init() {
