@@ -18,12 +18,13 @@ window.__EMOTION_CFG = {
     blush:  {},
   },
   '火花': {
+    exclusiveKeys: true,
     neutral: {},
     happy:  { key2: 1.0 },
-    angry:  { key3: 1.0, Param146: 1.0 },
-    sad:    { key8: 1.0, Param142: 0.8 },
-    love:   { key2: 1.0 },
-    surprised: {},
+    angry:  { key3: 1.0, Param146: 1.0, Param148: 0.8 },
+    sad:    { key8: 1.0, Param142: 1.0 },
+    love:   { key2: 1.0, key10: 0.5 },
+    surprised: { key5: 1.0 },
     blush:  { key2: 0.6 },
   },
   '薇薇安': {

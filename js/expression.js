@@ -28,12 +28,16 @@
     const pi = cm._paramIdx;
     const pv = cm.internalModel.coreModel._model.parameters.values;
 
-    // ── Clear gesture std params ──
-    for (const pid of STD_PARAMS) if (pi[pid] >= 0) pv[pi[pid]] = 0;
-
     // ── Emotion ──
     const cfg = window.__EMOTION_CFG;
     const modelCfg = cfg && cfg[modelLabel] ? cfg[modelLabel] : null;
+    const exclusive = modelCfg && modelCfg.exclusiveKeys ? true : false;
+
+    // ── Clear gesture std params (skip for exclusive models — they use their own keys) ──
+    if (!exclusive) {
+      for (const pid of STD_PARAMS) if (pi[pid] >= 0) pv[pi[pid]] = 0;
+    }
+
     const exprScores = window.__exprScores;
     if (exprScores) {
       const h = exprScores.happy || 0, su = exprScores.surprised || 0;
@@ -46,17 +50,35 @@
       ];
       let dominant='neutral', maxVal=0.15;
       for (const e of emotions) if (e.val > maxVal) { dominant=e.name; maxVal=e.val; }
-      if (dominant !== 'neutral' && STD_EXPR[dominant])
-        for (const [pid,val] of Object.entries(STD_EXPR[dominant]))
-          if (pi[pid] >= 0) pv[pi[pid]] = val * maxVal;
-      if (modelCfg) {
-        if (prevState && prevState !== dominant && modelCfg[prevState])
-          for (const paramId of Object.keys(modelCfg[prevState]))
-            if (pi[paramId] >= 0) pv[pi[paramId]] = 0;
+      // ── Apply expression ──
+      if (exclusive) {
+        // Exclusive-key model: clear gesture params too, then set only dominant at full 1.0
+        for (const pid of STD_PARAMS) if (pi[pid] >= 0) pv[pi[pid]] = 0;
+        if (prevState) {
+          const prevKeys = modelCfg[prevState];
+          if (prevKeys) for (const pid of Object.keys(prevKeys))
+            if (pi[pid] >= 0) pv[pi[pid]] = 0;
+        }
         prevState = dominant;
-        const t = modelCfg[dominant];
-        if (t) for (const [pid,val] of Object.entries(t))
-          if (pi[pid] >= 0) pv[pi[pid]] = val * maxVal;
+        if (dominant !== 'neutral') {
+          const t = modelCfg[dominant];
+          if (t) for (const [pid,val] of Object.entries(t))
+            if (pi[pid] >= 0) pv[pi[pid]] = val;
+        }
+      } else {
+        // Standard model: blend with intensity
+        if (dominant !== 'neutral' && STD_EXPR[dominant])
+          for (const [pid,val] of Object.entries(STD_EXPR[dominant]))
+            if (pi[pid] >= 0) pv[pi[pid]] = val * maxVal;
+        if (modelCfg) {
+          if (prevState && prevState !== dominant && modelCfg[prevState])
+            for (const paramId of Object.keys(modelCfg[prevState]))
+              if (pi[paramId] >= 0) pv[pi[paramId]] = 0;
+          prevState = dominant;
+          const t = modelCfg[dominant];
+          if (t) for (const [pid,val] of Object.entries(t))
+            if (pi[pid] >= 0) pv[pi[pid]] = val * maxVal;
+        }
       }
     }
 
