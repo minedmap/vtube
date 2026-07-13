@@ -399,12 +399,23 @@
                 s._eyeBsL = ebs.findIndex(c => c.categoryName === 'eyeBlinkLeft');  // lm386/374 쪽 눈
               }
               if (ebs && s._eyeBsR >= 0 && s._eyeBsL >= 0) {
-                // score: 뜬 상태 ~0.05, 완전 감음 ~0.5+ → 0.08~0.5 구간을 1~0으로 매핑
-                eyeA = 1 - Math.min(1, Math.max(0, (ebs[s._eyeBsR].score - 0.08) / 0.42));
-                eyeB = 1 - Math.min(1, Math.max(0, (ebs[s._eyeBsL].score - 0.08) / 0.42));
-                // 윙크: 한쪽만 감으면 반대쪽 score도 따라 오르므로, 차이가 크면 뜬 쪽은 완전 오픈
-                if (eyeA - eyeB > 0.4) eyeA = 1;
-                else if (eyeB - eyeA > 0.4) eyeB = 1;
+                // score: 뜬 상태 ~0.05, 완전 감음 ~0.38+ → 0.08~0.38 구간을 1~0으로 매핑
+                let rawA = 1 - Math.min(1, Math.max(0, (ebs[s._eyeBsR].score - 0.08) / 0.30));
+                let rawB = 1 - Math.min(1, Math.max(0, (ebs[s._eyeBsL].score - 0.08) / 0.30));
+                // 윙크: 한쪽만 감으면 반대쪽 score도 따라 오르므로 뜬 쪽은 완전 오픈으로 스냅.
+                // 경계에서 스냅이 토글되며 떨리지 않도록 히스테리시스(진입 0.45 / 해제 0.25)
+                const eyeDiff = rawA - rawB;
+                if (!s._winkSide) {
+                  if (eyeDiff > 0.45) s._winkSide = 1;
+                  else if (eyeDiff < -0.45) s._winkSide = -1;
+                } else if (Math.abs(eyeDiff) < 0.25) s._winkSide = 0;
+                if (s._winkSide === 1) rawA = 1;
+                else if (s._winkSide === -1) rawB = 1;
+                // 가벼운 스무딩: 잔떨림 제거, 깜빡임 반응성 유지
+                s._eyeSmA = s._eyeSmA === undefined ? rawA : s._eyeSmA + (rawA - s._eyeSmA) * 0.5;
+                s._eyeSmB = s._eyeSmB === undefined ? rawB : s._eyeSmB + (rawB - s._eyeSmB) * 0.5;
+                eyeA = s._eyeSmA;
+                eyeB = s._eyeSmB;
               } else {
                 const lEyeH = Math.abs(lm[159].y - lm[145].y) / faceH * 10;
                 const rEyeH = Math.abs(lm[386].y - lm[374].y) / faceH * 10;
