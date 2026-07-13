@@ -57,6 +57,8 @@
         if (pid2 === 'Part70' || pid2 === 'Part59' || pid2 === 'Part48') {
           pts.opacities[pi2] = 1.0;
         }
+        // watermark (槿絮水印.png)
+        if (pid2 === 'Part19') pts.opacities[pi2] = 0;
       }
     }
     if (idx.Param15 >= 0) pVals[idx.Param15] = 0.0;
@@ -107,6 +109,13 @@
         // face expression classifier (표정 분류값이 raw tracking 덮어씀)
         if (window.__updateExpression) {
           window.__updateExpression(cfg.label);
+        }
+        // per-frame watermark kill
+        const __pts = im.coreModel._model.parts;
+        if (__pts && __pts.ids) {
+          for (let __pi = 0; __pi < __pts.ids.length; __pi++) {
+            if (__pts.ids[__pi] === 'Part19') __pts.opacities[__pi] = 0;
+          }
         }
       }
       return ret;
