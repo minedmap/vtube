@@ -14,6 +14,7 @@ const MODELS = window.__MODELS = window.__MODELS || [
   { path: '/models/火花/火花.model3.json', label: '火花', anchor: [0.5, 0.45], scale: 0.2 },
   { path: '/models/RuanMei/rm.model3.json', label: 'RuanMei', anchor: [0.5, 0.45], scale: 0.2 },
   { path: '/models/fuxuan/fuxuan.model3.json', label: 'fuxuan', anchor: [0.5, 0.45], scale: 0.2 },
+  { path: '/models/【雪熊企划】八千代辉夜姬/八千代辉夜姬.model3.json', label: '辉夜姬', anchor: [0.5, 0.45], scale: 0.2 },
 ];
 
 async function init() {
