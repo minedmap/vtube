@@ -57,8 +57,8 @@
         if (pid2 === 'Part70' || pid2 === 'Part59' || pid2 === 'Part48') {
           pts.opacities[pi2] = 1.0;
         }
-        // watermark (槿絮水印.png, 夜墨ww黑色.png)
-        if (pid2 === 'Part19' || pid2 === 'Part20') pts.opacities[pi2] = 0;
+        // watermark only for 火花
+        if (cfg.label === '火花' && (pid2 === 'Part19' || pid2 === 'Part20')) pts.opacities[pi2] = 0;
       }
     }
     if (idx.Param15 >= 0) pVals[idx.Param15] = 0.0;
@@ -101,22 +101,24 @@
           if (pi.ParamEyeLOpen >= 0) pv[pi.ParamEyeLOpen] = bothEye;
           if (pi.ParamEyeROpen >= 0) pv[pi.ParamEyeROpen] = bothEye;
         }
-        // watermark off - all expression params
-        const wmKeys = ['key12','key1','key2','key3','key4','key5','key6','key7','key8','key9','key10','key11','Param7',
-          'Param142','Param143','Param144','Param145','Param146','Param147','Param148','Param149','Param150','Param151','Param152','Param153','Param154','Param155','Param156'];
-        for (const k of wmKeys) {
-          if (pi[k] >= 0) pv[pi[k]] = 0;
+        // watermark off - only for 火花
+        if (cfg.label === '火花') {
+          const wmKeys = ['key12','key1','key2','key3','key4','key5','key6','key7','key8','key9','key10','key11','Param7',
+            'Param142','Param143','Param144','Param145','Param146','Param147','Param148','Param149','Param150','Param151','Param152','Param153','Param154','Param155','Param156'];
+          for (const k of wmKeys) {
+            if (pi[k] >= 0) pv[pi[k]] = 0;
+          }
+          // per-frame watermark part kill
+          const __pts = im.coreModel._model.parts;
+          if (__pts && __pts.ids) {
+            for (let __pi = 0; __pi < __pts.ids.length; __pi++) {
+              if (__pts.ids[__pi] === 'Part19' || __pts.ids[__pi] === 'Part20') __pts.opacities[__pi] = 0;
+            }
+          }
         }
-        // face expression classifier (표정 분류값이 raw tracking 덮어씀)
+        // face expression classifier
         if (window.__updateExpression) {
           window.__updateExpression(cfg.label);
-        }
-        // per-frame watermark kill
-        const __pts = im.coreModel._model.parts;
-        if (__pts && __pts.ids) {
-          for (let __pi = 0; __pi < __pts.ids.length; __pi++) {
-            if (__pts.ids[__pi] === 'Part19' || __pts.ids[__pi] === 'Part20') __pts.opacities[__pi] = 0;
-          }
         }
       }
       return ret;
