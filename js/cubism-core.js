@@ -89,7 +89,7 @@
       if (s.stream !== null) {
         const pi = idx, pv = pVals;
         const invertX = cfg.label === 'Huohuo' ? -1 : 1;
-        const invertY = cfg.label === 'Huohuo' ? -1 : 1;
+        const invertY = 1;
         if (s.headX || s.headY) {
           if (pi.ParamAngleX >= 0) pv[pi.ParamAngleX] = s.headX * 68 * invertX;
           if (pi.ParamAngleY >= 0) pv[pi.ParamAngleY] = s.headY * 114 * invertY;
