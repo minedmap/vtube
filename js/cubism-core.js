@@ -103,9 +103,8 @@
           if (pi.ParamMouthOpenX >= 0) pv[pi.ParamMouthOpenX] = s.mouthForm;
         }
         if (s.eyeLOpen !== undefined) {
-          const bothEye = Math.min(s.eyeLOpen, s.eyeROpen);
-          if (pi.ParamEyeLOpen >= 0) pv[pi.ParamEyeLOpen] = bothEye;
-          if (pi.ParamEyeROpen >= 0) pv[pi.ParamEyeROpen] = bothEye;
+          if (pi.ParamEyeLOpen >= 0) pv[pi.ParamEyeLOpen] = s.eyeLOpen;
+          if (pi.ParamEyeROpen >= 0) pv[pi.ParamEyeROpen] = s.eyeROpen;
         }
         // watermark off - only for 火花
         if (cfg.label === '火花') {
