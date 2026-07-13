@@ -391,10 +391,26 @@
               const targetForm = Math.max(-1, Math.min(1, form));
               s.mouthForm += (targetForm - s.mouthForm) * 0.3; // 스무딩
               // ── 눈 감김(flipX 시 좌우 스왑) ──
-              const lEyeH = Math.abs(lm[159].y - lm[145].y) / faceH * 10;
-              const rEyeH = Math.abs(lm[386].y - lm[374].y) / faceH * 10;
-              const eyeA = Math.min(1, Math.max(0, lEyeH));
-              const eyeB = Math.min(1, Math.max(0, rEyeH));
+              // blendshape(eyeBlink)가 랜드마크 거리보다 정확: 완전 감김 시 0 도달 + 윙크 좌우 분리
+              let eyeA, eyeB;
+              const ebs = s.faceBlend;
+              if (s._eyeBsR === undefined && ebs) {
+                s._eyeBsR = ebs.findIndex(c => c.categoryName === 'eyeBlinkRight'); // lm159/145 쪽 눈
+                s._eyeBsL = ebs.findIndex(c => c.categoryName === 'eyeBlinkLeft');  // lm386/374 쪽 눈
+              }
+              if (ebs && s._eyeBsR >= 0 && s._eyeBsL >= 0) {
+                // score: 뜬 상태 ~0.05, 완전 감음 ~0.5+ → 0.08~0.5 구간을 1~0으로 매핑
+                eyeA = 1 - Math.min(1, Math.max(0, (ebs[s._eyeBsR].score - 0.08) / 0.42));
+                eyeB = 1 - Math.min(1, Math.max(0, (ebs[s._eyeBsL].score - 0.08) / 0.42));
+                // 윙크: 한쪽만 감으면 반대쪽 score도 따라 오르므로, 차이가 크면 뜬 쪽은 완전 오픈
+                if (eyeA - eyeB > 0.4) eyeA = 1;
+                else if (eyeB - eyeA > 0.4) eyeB = 1;
+              } else {
+                const lEyeH = Math.abs(lm[159].y - lm[145].y) / faceH * 10;
+                const rEyeH = Math.abs(lm[386].y - lm[374].y) / faceH * 10;
+                eyeA = Math.min(1, Math.max(0, lEyeH));
+                eyeB = Math.min(1, Math.max(0, rEyeH));
+              }
               s.eyeLOpen = s.flipX ? eyeB : eyeA;
               s.eyeROpen = s.flipX ? eyeA : eyeB;
               window.setStatus('눈A:'+eyeA.toFixed(2)+' 눈B:'+eyeB.toFixed(2)+' X:'+Math.round(s.rawX*100)+' Y:'+Math.round(s.rawY*100)+' 손:'+s.handData.length+' EXPR:'+(window.__exprDebug||'?'));
