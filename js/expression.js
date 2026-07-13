@@ -95,16 +95,26 @@
     const puffCfg = window.__CHEEKPUFF_CFG;
     const puffMap = puffCfg && puffCfg[modelLabel] ? puffCfg[modelLabel] : null;
     if (puffMap) {
-      const lm = s.lastFaceLM;
       let puffVal = 0;
-      if (lm && lm.length > 454) {
-        // Measure cheek width: distance between left/right cheek landmarks
-        // Normalized by face width (ear-to-ear)
-        const faceW = Math.abs(lm[454].x - lm[234].x);
-        const cheekW = Math.abs(lm[280].x - lm[50].x);
-        const ratio = cheekW / faceW;
-        // Puffed cheeks > ~0.65 ratio. Normal ~0.55
-        puffVal = ratio > 0.66 ? Math.min(1, (ratio - 0.66) * 8) : 0;
+      const bs = s.faceBlend;
+      if (bs) {
+        // MediaPipe blendshape: direct cheekPuff score (0~1)
+        if (s._puffBsIdx === undefined)
+          s._puffBsIdx = bs.findIndex(c => c.categoryName === 'cheekPuff');
+        if (s._puffBsIdx >= 0) {
+          const score = bs[s._puffBsIdx].score;
+          puffVal = score > 0.2 ? Math.min(1, (score - 0.2) / 0.4) : 0;
+        }
+      } else {
+        // Fallback: cheek width ratio from landmarks
+        const lm = s.lastFaceLM;
+        if (lm && lm.length > 454) {
+          const faceW = Math.abs(lm[454].x - lm[234].x);
+          const cheekW = Math.abs(lm[280].x - lm[50].x);
+          const ratio = cheekW / faceW;
+          // Puffed cheeks > ~0.65 ratio. Normal ~0.55
+          puffVal = ratio > 0.66 ? Math.min(1, (ratio - 0.66) * 8) : 0;
+        }
       }
       // Smooth puff
       s._puffVal = s._puffVal || 0;

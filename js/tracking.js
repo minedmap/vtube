@@ -132,6 +132,8 @@
               if (fr.faceLandmarks && fr.faceLandmarks.length > 0) {
                 faceResult = fr;
                 s.lastFaceLM = fr.faceLandmarks[0];
+                s.faceBlend = fr.faceBlendshapes && fr.faceBlendshapes[0]
+                  ? fr.faceBlendshapes[0].categories : null;
               }
             }
             if (s.faceOn && s.overlayShow && s.lastFaceLM) {

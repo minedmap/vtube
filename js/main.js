@@ -63,7 +63,8 @@ async function init() {
   s.faceLandmarker = await mod.FaceLandmarker.createFromOptions(vision, {
     baseOptions: { modelAssetPath: '/lib/mediapipe/face_landmarker.task' },
     runningMode: 'VIDEO', numFaces: 1,
-    minFaceDetectionConfidence: 0.5, minTrackingConfidence: 0.5
+    minFaceDetectionConfidence: 0.5, minTrackingConfidence: 0.5,
+    outputFaceBlendshapes: true
   });
   s.handLandmarker = await mod.HandLandmarker.createFromOptions(vision, {
     baseOptions: { modelAssetPath: '/lib/mediapipe/hand_landmarker.task' },

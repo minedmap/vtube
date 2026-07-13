@@ -27,7 +27,7 @@ window.__EMOTION_CFG = {
     surprised: { key5: 1.0 },
     blush:  { key2: 0.6 },
   },
-  '薇薇安': {
+  vivian: {
     neutral: {},
     happy:  {},
     angry:  { Param150: 0.5 },
@@ -78,10 +78,10 @@ window.__EMOTION_CFG = {
 // Detected when user physically puffs cheeks
 // Maps cheek puff param per model
 window.__CHEEKPUFF_CFG = {
-  '火花':       { CheekPuff: 0.8, CheekPuff2: 0.3, RCheekPuff: 0.5, LCheekPuff: 0.5 },
-  '辉夜姬':     { ParamCheekPuff: 0.8, ParamCheekPuff2: 0.3 },
-  '薇薇安':     { Param16: 0.8 },
+  '火花':       { CheekPuff: 1.0, CheekPuff2: 0.3, RCheekPuff: 0.5, LCheekPuff: 0.5 },
+  '辉夜姬':     { ParamCheekPuff: 1.0, ParamCheekPuff2: 0.3 },
+  vivian:       { Param16: 1.0 },   // 鼓脸 (Param134 鼓脸联动 is physics-linked)
   '魔女':       { Param21: 1.0 },
   Frieren:      { Param21: 1.0 },
-  ellot:        { Param3: 1.0 },
+  ellot:        { Param3: 1.0 },    // 볼부풀기
 };
