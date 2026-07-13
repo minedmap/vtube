@@ -95,7 +95,7 @@
         const cheekW = Math.abs(lm[280].x - lm[50].x);
         const ratio = cheekW / faceW;
         // Puffed cheeks > ~0.65 ratio. Normal ~0.55
-        puffVal = ratio > 0.62 ? Math.min(1, (ratio - 0.62) * 12) : 0;
+        puffVal = ratio > 0.66 ? Math.min(1, (ratio - 0.66) * 8) : 0;
       }
       // Smooth puff
       s._puffVal = s._puffVal || 0;
