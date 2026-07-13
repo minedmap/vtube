@@ -44,9 +44,9 @@
         document.body.appendChild(ipImg);
         s._ipImg = ipImg;
         ipImg.onload = () => {
-          camBox.style.display = 'block';
+          camBox.style.display = 'none';
           boxToggle.style.display = 'block';
-          s.boxVisible = true;
+          s.boxVisible = false;
           boxToggle.textContent = '박스 OFF';
           camBtn.textContent = 'CAM OFF';
           window.setStatus('IP캠 트래킹 시작...');
