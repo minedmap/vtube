@@ -10,8 +10,9 @@
 
   // ── 튜닝 상수 (window.__exprCfg 로 런타임 조정 가능) ──
   const CFG = window.__exprCfg = {
-    gainHappy:     18,   // 웃음(입꼬리) 민감도
-    gainHappyWide: 0.5, // 입 가로 벌어짐 민감도 ↓↓ (말할 때 false 방지)
+    gainHappy:     20,   // 웃음(입꼬리) 민감도
+    gainHappyWide: 0,    // 입 가로 벌어짐 미사용
+    happyMinSmile: 0.004, // 입꼬리 최소 변화량(이하 무시)
     gainSurprise:  5,    // 놀람(입 벌림) 민감도
     gainSurpBrow:  11,   // 놀람(눈썹 올림) 민감도
     gainSurpEye:   8,    // 놀람(눈 크게) 민감도
@@ -101,7 +102,7 @@
     const dFurrow = n.innerGap - f.innerGap;   // +면 미간 좁혀짐
     const dEye    = f.eyeOpen - n.eyeOpen;
 
-    const happy = clamp01(dSmile * CFG.gainHappy + dWidth * CFG.gainHappyWide);
+    const happy = clamp01(dSmile > CFG.happyMinSmile ? dSmile * CFG.gainHappy : 0);
     // 놀람: 입 벌림 + 눈썹 올림 + 눈 크게 (여러 신호 합)
     const surprised = clamp01(
       Math.max(0, dOpen) * CFG.gainSurprise * 0.5 +
