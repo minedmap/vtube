@@ -395,7 +395,7 @@
               const eyeB = Math.min(1, Math.max(0, rEyeH));
               s.eyeLOpen = s.flipX ? eyeB : eyeA;
               s.eyeROpen = s.flipX ? eyeA : eyeB;
-              // MMD/VRM 로 얼굴 신호 전달(머리 + 눈 + 입)
+              window.setStatus('눈A:'+eyeA.toFixed(2)+' 눈B:'+eyeB.toFixed(2)+' X:'+Math.round(s.rawX*100)+' Y:'+Math.round(s.rawY*100)+' 손:'+s.handData.length+' EXPR:'+(window.__exprDebug||'?'));
               window.__mmdFace = {
                 yaw: s.headX * 0.3, pitch: -s.headY * 0.3,
                 blink: Math.max(0, Math.min(1, 1 - Math.min(s.eyeLOpen, s.eyeROpen))),
