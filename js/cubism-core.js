@@ -103,8 +103,11 @@
           if (pi.ParamMouthOpenX >= 0) pv[pi.ParamMouthOpenX] = s.mouthForm;
         }
         if (s.eyeLOpen !== undefined) {
-          if (pi.ParamEyeLOpen >= 0) pv[pi.ParamEyeLOpen] = s.eyeLOpen;
-          if (pi.ParamEyeROpen >= 0) pv[pi.ParamEyeROpen] = s.eyeROpen;
+          // Huohuo eye range may be wider → square for tighter close
+          const eyeScale = cfg.label === 'huohuo' ? s.eyeLOpen * s.eyeLOpen : s.eyeLOpen;
+          const eyeScaleR = cfg.label === 'huohuo' ? s.eyeROpen * s.eyeROpen : s.eyeROpen;
+          if (pi.ParamEyeLOpen >= 0) pv[pi.ParamEyeLOpen] = eyeScale;
+          if (pi.ParamEyeROpen >= 0) pv[pi.ParamEyeROpen] = eyeScaleR;
         }
         // watermark off - only for 火花
         if (cfg.label === '火花') {
