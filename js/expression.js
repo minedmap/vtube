@@ -95,27 +95,28 @@
     const puffCfg = window.__CHEEKPUFF_CFG;
     const puffMap = puffCfg && puffCfg[modelLabel] ? puffCfg[modelLabel] : null;
     if (puffMap) {
-      let puffVal = 0;
+      // Blendshape score and landmark ratio both computed; strongest wins.
+      // MediaPipe cheekPuff blendshape scores run low even when fully puffed.
+      let bsScore = 0, ratio = 0, puffVal = 0;
       const bs = s.faceBlend;
       if (bs) {
-        // MediaPipe blendshape: direct cheekPuff score (0~1)
         if (s._puffBsIdx === undefined)
           s._puffBsIdx = bs.findIndex(c => c.categoryName === 'cheekPuff');
         if (s._puffBsIdx >= 0) {
-          const score = bs[s._puffBsIdx].score;
-          puffVal = score > 0.2 ? Math.min(1, (score - 0.2) / 0.4) : 0;
-        }
-      } else {
-        // Fallback: cheek width ratio from landmarks
-        const lm = s.lastFaceLM;
-        if (lm && lm.length > 454) {
-          const faceW = Math.abs(lm[454].x - lm[234].x);
-          const cheekW = Math.abs(lm[280].x - lm[50].x);
-          const ratio = cheekW / faceW;
-          // Puffed cheeks > ~0.65 ratio. Normal ~0.55
-          puffVal = ratio > 0.66 ? Math.min(1, (ratio - 0.66) * 8) : 0;
+          bsScore = bs[s._puffBsIdx].score;
+          puffVal = bsScore > 0.06 ? Math.min(1, (bsScore - 0.06) / 0.2) : 0;
         }
       }
+      const lm = s.lastFaceLM;
+      if (lm && lm.length > 454) {
+        // Cheek width / face width. Puffed > ~0.65, normal ~0.55
+        const faceW = Math.abs(lm[454].x - lm[234].x);
+        const cheekW = Math.abs(lm[280].x - lm[50].x);
+        ratio = cheekW / faceW;
+        const lmVal = ratio > 0.66 ? Math.min(1, (ratio - 0.66) * 8) : 0;
+        puffVal = Math.max(puffVal, lmVal);
+      }
+      s._puffDbg = ` bs:${bsScore.toFixed(2)} r:${ratio.toFixed(2)}`;
       // Smooth puff
       s._puffVal = s._puffVal || 0;
       s._puffVal += (puffVal - s._puffVal) * 0.25;
@@ -130,7 +131,7 @@
 
     // Debug
     const emoji={neutral:'😐',happy:'😊',surprised:'😮',angry:'😠',sad:'😢',love:'🥰',blush:'☺️'};
-    const dbg=`${emoji[prevState||'neutral']||'?'} ${prevState||'neutral'} puff:${(s._puffVal||0).toFixed(2)}`;
+    const dbg=`${emoji[prevState||'neutral']||'?'} ${prevState||'neutral'} puff:${(s._puffVal||0).toFixed(2)}${s._puffDbg||''}`;
     window.__emotionDebug = dbg;
     window.__exprDebug = dbg;
   };
