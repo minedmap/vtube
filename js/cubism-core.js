@@ -98,8 +98,12 @@
           if (pi.ParamEyeLOpen >= 0) pv[pi.ParamEyeLOpen] = s.eyeLOpen;
           if (pi.ParamEyeROpen >= 0) pv[pi.ParamEyeROpen] = s.eyeROpen;
         }
-        // watermark off (12 水印)
-        if (pi.key12 >= 0) pv[pi.key12] = 0;
+        // watermark off - all expression params
+        const wmKeys = ['key12','key1','key2','key3','key4','key5','key6','key7','key8','key9','key10','key11','Param7',
+          'Param142','Param143','Param144','Param145','Param146','Param147','Param148','Param149','Param150','Param151','Param152','Param153','Param154','Param155','Param156'];
+        for (const k of wmKeys) {
+          if (pi[k] >= 0) pv[pi[k]] = 0;
+        }
         // face expression classifier (표정 분류값이 raw tracking 덮어씀)
         if (window.__updateExpression) {
           window.__updateExpression(cfg.label);
