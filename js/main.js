@@ -7,7 +7,7 @@ const MODELS = window.__MODELS = window.__MODELS || [
   { path: '/models/Mao/Mao.model3.json', label: 'Mao', anchor: [0.5, 0.35], scale: 0.18 },
   { path: '/models/Frieren/Frieren.model3.json', label: 'Frieren', anchor: [0.5, 0.45], scale: 0.2 },
   { path: '/models/Hiyori/Hiyori.model3.json', label: 'Hiyori', anchor: [0.5, 0.15], scale: 0.22 },
-  { path: '/models/薇薇安/薇薇安.model3.json', label: '薇薇安', anchor: [0.5, 0.45], scale: 0.2 },
+  { path: '/models/薇薇安/薇薇安.model3.json', label: 'vivian', anchor: [0.5, 0.45], scale: 0.2 },
 ];
 
 async function init() {
