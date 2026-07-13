@@ -48,7 +48,7 @@
         { name:'sad',val:sa },{ name:'love',val:loveVal },
         { name:'blush',val:loveVal*0.6 },{ name:'happy',val:h },
       ];
-      let dominant='neutral', maxVal=0.15;
+      let dominant='neutral', maxVal=0.2;
       for (const e of emotions) if (e.val > maxVal) { dominant=e.name; maxVal=e.val; }
       // ── Apply expression ──
       if (exclusive) {
