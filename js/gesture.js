@@ -192,6 +192,54 @@
       target = neutral ? computeEmotions(f, neutral) : { happy: 0, surprised: 0, angry: 0, sad: 0 };
     }
 
+    // ── ML emotion prediction (if model loaded) ──
+    if (lm && lm.length >= 478 && window.__predictEmotion) {
+      try {
+        // Get face bounding box from landmarks
+        const video = document.getElementById('cam');
+        if (video && video.videoWidth > 0) {
+          let minX=9999, minY=9999, maxX=0, maxY=0;
+          for (let i = 0; i < lm.length; i++) {
+            if (lm[i].x < minX) minX = lm[i].x;
+            if (lm[i].y < minY) minY = lm[i].y;
+            if (lm[i].x > maxX) maxX = lm[i].x;
+            if (lm[i].y > maxY) maxY = lm[i].y;
+          }
+          // Scale to video dimensions (landmarks are 0-1 normalized)
+          const vw = video.videoWidth, vh = video.videoHeight;
+          const bx = Math.max(0, minX * vw);
+          const by = Math.max(0, minY * vh);
+          const bw = Math.min(vw - bx, (maxX - minX) * vw);
+          const bh = Math.min(vh - by, (maxY - minY) * vh);
+          
+          if (bw > 20 && bh > 20) {
+            // Create offscreen canvas, draw face crop, resize to 24×24
+            const oc = document.createElement('canvas');
+            oc.width = 24; oc.height = 24;
+            const ctx = oc.getContext('2d');
+            ctx.drawImage(video, bx, by, bw, bh, 0, 0, 24, 24);
+            const imgData = ctx.getImageData(0, 0, 24, 24);
+            const mlResult = window.__predictEmotion(imgData);
+            if (mlResult) {
+              // Blend: 70% ML + 30% heuristic
+              const ml = mlResult.scores;
+              const ml2 = {
+                happy: ml.happy || 0,
+                surprised: (ml.surprise || 0) * 1.2,
+                angry: ml.angry || 0,
+                sad: ml.sad || 0,
+              };
+              for (const k in target) {
+                target[k] = target[k] * 0.3 + ml2[k] * 0.7;
+              }
+            }
+          }
+        }
+      } catch(e) {
+        // ML fallback: keep heuristic only
+      }
+    }
+
     // 강도 시간 스무딩
     for (const k in emo) emo[k] += (target[k] - emo[k]) * CFG.smooth;
 

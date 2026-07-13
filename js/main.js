@@ -30,6 +30,9 @@ async function init() {
 
   // OBS 브라우저 소스용 투명 모드: URL 에 ?obs 붙이면 배경 투명
   const OBS = new URLSearchParams(location.search).has('obs');
+
+  // ── Load ML emotion model ──
+  if (window.__loadEmotionModel) window.__loadEmotionModel();
   s.app = new PIXI.Application({
     view: document.getElementById('c'),
     width: window.innerWidth, height: window.innerHeight,
