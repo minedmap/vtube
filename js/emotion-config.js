@@ -15,7 +15,7 @@ window.__EMOTION_CFG = {
   },
   '辉夜姬': {
     neutral: {},
-    happy:  { ParamExpression_3: 1.0 },       // 笑眯眯
+    happy:  {},       // gesture.js handles standard params
     angry:  { ParamEyeSmile_Angry_L: 1.0, ParamEyeSmile_Angry_R: 1.0 },
     sad:    { ParamExpression_1: 1.0, ParamExpression_2: 0.8 },  // 眼泪+泪珠
     love:   {},
