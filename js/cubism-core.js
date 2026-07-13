@@ -63,17 +63,18 @@
     }
     if (idx.Param15 >= 0) pVals[idx.Param15] = 0.0;
     if (idx.Param21 >= 0) pVals[idx.Param21] = 0.0;
-    // 모델별 기본 자세 보정
     if (!window.__armPv) window.__armPv = {};
-
-    if (im.expressionManager) { im.expressionManager.stopAll(); im.expressionManager.updateParameters = () => {}; }
-    // 모션이 있는 모델(Motions in model3)은 updateParameters nullify
-    if (im.motionManager) { im.motionManager.updateParameters = () => {}; }
-    if (im.mainMotionManager) im.mainMotionManager.stopAll();
-    // 숨쉬기+눈깜빡임만 유지 (모션 없이)
-    const fc = im.focusController;
-    if (fc) { fc.x = 0; fc.y = 0; fc.targetX = 0; fc.targetY = 0; fc.vx = 0; fc.vy = 0; fc.enabled = false; }
-    if (m.focus) m.focus = () => {};
+    // 모델별 기본 자세 보정 - motion/expression kill only for models that fight with tracking
+    if (cfg.label === 'Frieren' || cfg.label === '火花') {
+      if (im.expressionManager) { im.expressionManager.stopAll(); im.expressionManager.updateParameters = () => {}; }
+      // 모션이 있는 모델(Motions in model3)은 updateParameters nullify
+      if (im.motionManager) { im.motionManager.updateParameters = () => {}; }
+      if (im.mainMotionManager) im.mainMotionManager.stopAll();
+      // 숨쉬기+눈깜빡임만 유지 (모션 없이)
+      const fc = im.focusController;
+      if (fc) { fc.x = 0; fc.y = 0; fc.targetX = 0; fc.targetY = 0; fc.vx = 0; fc.vy = 0; fc.enabled = false; }
+      if (m.focus) m.focus = () => {};
+    }
 
     const origUpdate = im.update;
     im.update = function() {
