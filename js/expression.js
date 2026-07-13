@@ -4,6 +4,8 @@
 (function() {
   const gestureUpdate = window.__updateExpression;
   let prevState = null;
+  // exclusive-key 모델용 상태머신 (노이즈로 표정이 널뛰는 것 방지)
+  let exCand = null, exCandN = 0, exHold = 999;
 
   const STD_PARAMS = [
     'ParamEyeLSmile','ParamEyeRSmile','ParamCheek',
@@ -42,7 +44,10 @@
     if (exprScores) {
       const h = exprScores.happy || 0, su = exprScores.surprised || 0;
       const a = exprScores.angry || 0, sa = exprScores.sad || 0;
-      const loveVal = h > 0.15 ? Math.min(1, h * 0.5 + (s.mouthForm || 0) * 0.4 + Math.max(0, 0.3 - (s.eyeLOpen || 1)) * 0.3) : 0;
+      // love: 크게 웃으면서(happy 강함) 눈웃음으로 눈이 거의 감겼을 때만
+      // (mouthForm 기반이면 말만 해도 발동하던 문제 수정)
+      const eyeAvg = ((s.eyeLOpen ?? 1) + (s.eyeROpen ?? 1)) / 2;
+      const loveVal = (h > 0.5 && eyeAvg < 0.4) ? Math.min(1, h * 1.1) : 0;
       const emotions = [
         { name:'surprised',val:su },{ name:'angry',val:a },
         { name:'sad',val:sa },{ name:'love',val:loveVal },
@@ -52,16 +57,30 @@
       for (const e of emotions) if (e.val > maxVal) { dominant=e.name; maxVal=e.val; }
       // ── Apply expression ──
       if (exclusive) {
-        // Exclusive-key model: clear gesture params too, then set only dominant at full 1.0
+        // Exclusive-key model: 키가 1.0 풀강도 토글이므로 히스테리시스+유지시간으로
+        // 상태 전환을 디바운스 (ML 점수 노이즈가 그대로 풀표정으로 터지던 문제)
+        const ENTER = 0.45, EXIT = 0.28, DWELL = 10, MIN_HOLD = 24;
+        const cur = prevState || 'neutral';
+        let curVal = 0;
+        if (cur !== 'neutral') for (const e of emotions) if (e.name === cur) curVal = e.val;
+        exHold++;
+        let next = cur;
+        if (cur !== 'neutral' && curVal < EXIT && exHold >= MIN_HOLD) next = 'neutral';
+        if (dominant !== 'neutral' && maxVal >= ENTER && dominant !== cur) {
+          if (exCand === dominant) exCandN++; else { exCand = dominant; exCandN = 1; }
+          if (exCandN >= DWELL && exHold >= MIN_HOLD) next = dominant;
+        } else { exCand = null; exCandN = 0; }
+        if (next !== cur) exHold = 0;
+
+        // 이전 상태 키 + std 파라미터 정리 후 현재 상태 키만 세팅 (겹침 방지)
         for (const pid of STD_PARAMS) if (pi[pid] >= 0) pv[pi[pid]] = 0;
-        if (prevState) {
-          const prevKeys = modelCfg[prevState];
-          if (prevKeys) for (const pid of Object.keys(prevKeys))
+        if (prevState && modelCfg[prevState]) {
+          for (const pid of Object.keys(modelCfg[prevState]))
             if (pi[pid] >= 0) pv[pi[pid]] = 0;
         }
-        prevState = dominant;
-        if (dominant !== 'neutral') {
-          const t = modelCfg[dominant];
+        prevState = next;
+        if (next !== 'neutral') {
+          const t = modelCfg[next];
           if (t) for (const [pid,val] of Object.entries(t))
             if (pi[pid] >= 0) pv[pi[pid]] = val;
         }
