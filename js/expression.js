@@ -3,6 +3,8 @@
 // Called from cubism-core.js im.update
 
 window.__updateExpression = function(modelLabel) {
+  // only for 火花 - param IDs are model-specific
+  if (modelLabel !== '火花') return;
   const s = window.__state;
   const cm = s.currentModel;
   if (!cm || !cm._paramIdx || !cm.internalModel) return;

@@ -54,15 +54,20 @@
     if (pts && pts.ids) {
       for (let pi2 = 0; pi2 < pts.ids.length; pi2++) {
         const pid2 = pts.ids[pi2];
-        if (pid2 === 'Part70' || pid2 === 'Part59' || pid2 === 'Part48') {
-          pts.opacities[pi2] = 1.0;
+        // 火花 watermark + part visibility fix
+        if (cfg.label === '火花') {
+          if (pid2 === 'Part70' || pid2 === 'Part59' || pid2 === 'Part48') {
+            pts.opacities[pi2] = 1.0;
+          }
+          if (pid2 === 'Part19' || pid2 === 'Part20') pts.opacities[pi2] = 0;
         }
-        // watermark only for 火花
-        if (cfg.label === '火花' && (pid2 === 'Part19' || pid2 === 'Part20')) pts.opacities[pi2] = 0;
       }
     }
-    if (idx.Param15 >= 0) pVals[idx.Param15] = 0.0;
-    if (idx.Param21 >= 0) pVals[idx.Param21] = 0.0;
+    // model-specific param kills
+    if (cfg.label === '火花') {
+      if (idx.Param15 >= 0) pVals[idx.Param15] = 0.0;
+      if (idx.Param21 >= 0) pVals[idx.Param21] = 0.0;
+    }
     if (!window.__armPv) window.__armPv = {};
     // 모델별 기본 자세 보정 - motion/expression kill only for models that fight with tracking
     if (cfg.label === 'Frieren' || cfg.label === '火花') {
