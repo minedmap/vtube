@@ -15,11 +15,11 @@
     gainSurprise:  5,    // 놀람(입 벌림) 민감도
     gainSurpBrow:  11,   // 놀람(눈썹 올림) 민감도
     gainSurpEye:   8,    // 놀람(눈 크게) 민감도
-    gainAngryBrow: 14,   // 화남(눈썹 내림) 민감도
-    gainAngryFurr: 22,   // 화남(미간 좁힘) 민감도
+    gainAngryBrow: 25,   // 화남(눈썹 내림) 민감도 ↑
+    gainAngryFurr: 35,   // 화남(미간 좁힘) 민감도 ↑
     gainSadCorner: 12,   // 슬픔(입꼬리 내림) 민감도
     gainSadBrow:   9,    // 슬픔(눈썹 안쪽 올림) 민감도
-    smooth:        0.25, // 강도 시간 스무딩(클수록 빠름)
+    smooth:        0.35, // 강도 시간 스무딩(클수록 빠름)
     calRate:       0.01, // 중립 기준 자동 학습 속도
     calActivity:   0.18, // 이 강도 미만일 때만 중립 기준 갱신
   };

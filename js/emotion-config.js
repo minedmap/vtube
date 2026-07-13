@@ -25,7 +25,7 @@ window.__EMOTION_CFG = {
   '火花': {
     neutral: {},
     happy:  { key2: 1.0, CheekPuff: 0.6 },    // 脸红爱心 + 볼빵빵
-    angry:  { key3: 1.0, Param146: 1.0 },
+    angry:  { key3: 1.0, Param146: 1.0, CheekPuff: 0.3 },
     sad:    { key8: 1.0, Param142: 0.8 },
     love:   { key2: 1.0, CheekPuff: 0.7 },    // 脸红爱心 + 볼빵빵
     surprised: { CheekPuff: 0.5 },
