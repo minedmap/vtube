@@ -97,8 +97,9 @@
           if (pi.ParamMouthOpenX >= 0) pv[pi.ParamMouthOpenX] = s.mouthForm;
         }
         if (s.eyeLOpen !== undefined) {
-          if (pi.ParamEyeLOpen >= 0) pv[pi.ParamEyeLOpen] = s.eyeLOpen;
-          if (pi.ParamEyeROpen >= 0) pv[pi.ParamEyeROpen] = s.eyeROpen;
+          const bothEye = Math.min(s.eyeLOpen, s.eyeROpen);
+          if (pi.ParamEyeLOpen >= 0) pv[pi.ParamEyeLOpen] = bothEye;
+          if (pi.ParamEyeROpen >= 0) pv[pi.ParamEyeROpen] = bothEye;
         }
         // watermark off - all expression params
         const wmKeys = ['key12','key1','key2','key3','key4','key5','key6','key7','key8','key9','key10','key11','Param7',
