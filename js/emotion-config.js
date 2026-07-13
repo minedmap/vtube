@@ -83,4 +83,5 @@ window.__CHEEKPUFF_CFG = {
   '薇薇安':     { Param16: 0.8 },
   '魔女':       { Param21: 1.0 },
   Frieren:      { Param21: 1.0 },
+  ellot:        { Param3: 1.0 },
 };
