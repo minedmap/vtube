@@ -1,11 +1,10 @@
-// ── Emotion → model-specific parameter mapper ──
-// Overwrites gesture.js's blended output → only dominant emotion applied
+// ── Emotion + cheek puff mapper ──
+// Dominant emotion only (no blend). Cheek puff detected separately.
 
 (function() {
   const gestureUpdate = window.__updateExpression;
   let prevState = null;
 
-  // Standard params that gesture.js controls (must clear before re-apply)
   const STD_PARAMS = [
     'ParamEyeLSmile','ParamEyeRSmile','ParamCheek',
     'ParamBrowLY','ParamBrowRY','ParamBrowLForm','ParamBrowRForm',
@@ -13,7 +12,6 @@
     'ParamMouthUp','ParamMouthDown','ParamMouthAngry','ParamMouthAngryLine',
   ];
 
-  // Standard param mapping for each emotion (isolated, no blend)
   const STD_EXPR = {
     happy:    { ParamEyeLSmile: 0.9, ParamEyeRSmile: 0.9, ParamCheek: 0.6, ParamBrowLY: 0.15, ParamBrowRY: 0.15, ParamMouthUp: 0.8 },
     surprised:{ ParamBrowLY: 1.0, ParamBrowRY: 1.0, ParamBrowLForm: 0.5, ParamBrowRForm: 0.5, ParamEyeLSmile: -0.3, ParamEyeRSmile: -0.3 },
@@ -22,8 +20,6 @@
   };
 
   window.__updateExpression = function(modelLabel) {
-    // Run gesture.js classifier to get __exprScores (emotion intensities)
-    // But ignore its param application
     if (gestureUpdate) gestureUpdate(modelLabel);
 
     const s = window.__state;
@@ -32,62 +28,68 @@
     const pi = cm._paramIdx;
     const pv = cm.internalModel.coreModel._model.parameters.values;
 
-    // Clear ALL standard gesture params first
-    for (const pid of STD_PARAMS) {
-      if (pi[pid] >= 0) pv[pi[pid]] = 0;
-    }
+    // ── Clear gesture std params ──
+    for (const pid of STD_PARAMS) if (pi[pid] >= 0) pv[pi[pid]] = 0;
 
+    // ── Emotion ──
     const cfg = window.__EMOTION_CFG;
     const modelCfg = cfg && cfg[modelLabel] ? cfg[modelLabel] : null;
-
     const exprScores = window.__exprScores;
-    if (!exprScores) return;
-
-    const h = exprScores.happy || 0;
-    const su = exprScores.surprised || 0;
-    const a = exprScores.angry || 0;
-    const sa = exprScores.sad || 0;
-
-    const loveVal = h > 0.15 ? Math.min(1, h * 0.5 + (s.mouthForm || 0) * 0.4 + Math.max(0, 0.3 - (s.eyeLOpen || 1)) * 0.3) : 0;
-
-    const emotions = [
-      { name: 'surprised', val: su },
-      { name: 'angry', val: a },
-      { name: 'sad', val: sa },
-      { name: 'love', val: loveVal },
-      { name: 'blush', val: loveVal * 0.6 },
-      { name: 'happy', val: h },
-    ];
-    let dominant = 'neutral', maxVal = 0.15;
-    for (const e of emotions) {
-      if (e.val > maxVal) { dominant = e.name; maxVal = e.val; }
-    }
-
-    // Apply ONLY dominant emotion's standard params
-    if (dominant !== 'neutral' && STD_EXPR[dominant]) {
-      for (const [pid, val] of Object.entries(STD_EXPR[dominant])) {
-        if (pi[pid] >= 0) pv[pi[pid]] = val * maxVal;
+    if (exprScores) {
+      const h = exprScores.happy || 0, su = exprScores.surprised || 0;
+      const a = exprScores.angry || 0, sa = exprScores.sad || 0;
+      const loveVal = h > 0.15 ? Math.min(1, h * 0.5 + (s.mouthForm || 0) * 0.4 + Math.max(0, 0.3 - (s.eyeLOpen || 1)) * 0.3) : 0;
+      const emotions = [
+        { name:'surprised',val:su },{ name:'angry',val:a },
+        { name:'sad',val:sa },{ name:'love',val:loveVal },
+        { name:'blush',val:loveVal*0.6 },{ name:'happy',val:h },
+      ];
+      let dominant='neutral', maxVal=0.15;
+      for (const e of emotions) if (e.val > maxVal) { dominant=e.name; maxVal=e.val; }
+      if (dominant !== 'neutral' && STD_EXPR[dominant])
+        for (const [pid,val] of Object.entries(STD_EXPR[dominant]))
+          if (pi[pid] >= 0) pv[pi[pid]] = val * maxVal;
+      if (modelCfg) {
+        if (prevState && prevState !== dominant && modelCfg[prevState])
+          for (const paramId of Object.keys(modelCfg[prevState]))
+            if (pi[paramId] >= 0) pv[pi[paramId]] = 0;
+        prevState = dominant;
+        const t = modelCfg[dominant];
+        if (t) for (const [pid,val] of Object.entries(t))
+          if (pi[pid] >= 0) pv[pi[pid]] = val * maxVal;
       }
     }
 
-    // Model-specific custom params
-    if (modelCfg) {
-      if (prevState && prevState !== dominant && modelCfg[prevState]) {
-        for (const paramId of Object.keys(modelCfg[prevState])) {
-          if (pi[paramId] >= 0) pv[pi[paramId]] = 0;
-        }
+    // ── Cheek puff (independent detector) ──
+    const puffCfg = window.__CHEEKPUFF_CFG;
+    const puffMap = puffCfg && puffCfg[modelLabel] ? puffCfg[modelLabel] : null;
+    if (puffMap) {
+      const lm = s.lastFaceLM;
+      let puffVal = 0;
+      if (lm && lm.length > 454) {
+        // Measure cheek width: distance between left/right cheek landmarks
+        // Normalized by face width (ear-to-ear)
+        const faceW = Math.abs(lm[454].x - lm[234].x);
+        const cheekW = Math.abs(lm[280].x - lm[50].x);
+        const ratio = cheekW / faceW;
+        // Puffed cheeks > ~0.65 ratio. Normal ~0.55
+        puffVal = ratio > 0.62 ? Math.min(1, (ratio - 0.62) * 12) : 0;
       }
-      prevState = dominant;
-      const targetMap = modelCfg[dominant];
-      if (targetMap) {
-        for (const [paramId, val] of Object.entries(targetMap)) {
-          if (pi[paramId] >= 0) pv[pi[paramId]] = val * maxVal;
-        }
+      // Smooth puff
+      s._puffVal = s._puffVal || 0;
+      s._puffVal += (puffVal - s._puffVal) * 0.25;
+      if (s._puffVal > 0.1) {
+        for (const [pid,val] of Object.entries(puffMap))
+          if (pi[pid] >= 0) pv[pi[pid]] = val * s._puffVal;
+      } else {
+        for (const pid of Object.keys(puffMap))
+          if (pi[pid] >= 0) pv[pi[pid]] = 0;
       }
     }
 
-    const emoji = { neutral:'😐', happy:'😊', surprised:'😮', angry:'😠', sad:'😢', love:'🥰', blush:'☺️' };
-    const dbg = `${emoji[dominant]||'?'} ${dominant} ${maxVal.toFixed(2)} h${h.toFixed(2)} su${su.toFixed(2)} a${a.toFixed(2)} sa${sa.toFixed(2)}`;
+    // Debug
+    const emoji={neutral:'😐',happy:'😊',surprised:'😮',angry:'😠',sad:'😢',love:'🥰',blush:'☺️'};
+    const dbg=`${emoji[prevState||'neutral']||'?'} ${prevState||'neutral'} puff:${(s._puffVal||0).toFixed(2)}`;
     window.__emotionDebug = dbg;
     window.__exprDebug = dbg;
   };
