@@ -12,12 +12,12 @@
   const CFG = window.__exprCfg = {
     gainHappy:     20,   // 웃음(입꼬리) 민감도
     gainHappyWide: 0,    // 입 가로 벌어짐 미사용
-    happyMinSmile: 0.004, // 입꼬리 최소 변화량(이하 무시)
+    happyMinSmile: 0.01, // 입꼬리 최소 변화량(1cm급 웃어야)
     gainSurprise:  5,    // 놀람(입 벌림) 민감도
     gainSurpBrow:  11,   // 놀람(눈썹 올림) 민감도
     gainSurpEye:   8,    // 놀람(눈 크게) 민감도
-    gainAngryBrow: 10,   // 화남(눈썹 내림) 민감도 ↓ (고개들때 false 방지)
-    gainAngryFurr: 18,   // 화남(미간 좁힘) 민감도 ↓
+    gainAngryBrow: 6,    // 화남(눈썹 내림) ↓↓ 진짜 찡그려야
+    gainAngryFurr: 12,   // 화남(미간 좁힘) ↓↓
     gainSadCorner: 12,   // 슬픔(입꼬리 내림) 민감도
     gainSadBrow:   9,    // 슬픔(눈썹 안쪽 올림) 민감도
     smooth:        0.4,  // 강도 시간 스무딩(클수록 빠름)
