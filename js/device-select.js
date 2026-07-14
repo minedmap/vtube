@@ -22,7 +22,7 @@
 
       camSelect.innerHTML = '';
       cams.forEach((cam, i) => {
-        const label = cam.label || `카메라 ${i+1} (${cam.deviceId.slice(0,8)}...)`;
+        const label = cam.label || `카메라 ${i+1}`;
         const opt = document.createElement('option');
         opt.value = cam.deviceId;
         opt.textContent = label;
@@ -89,11 +89,9 @@
     }
   };
 
-  // re-enum with labels after first CAM ON
+  // re-enum after CAM ON (getDeviceLabels needs permission)
   document.getElementById('camBtn').addEventListener('click', () => {
-    if (!s._camPermGranted) {
-      setTimeout(() => { enumerate(); s._camPermGranted = true; }, 500);
-    }
+    setTimeout(() => { enumerate(); s._camPermGranted = true; }, 200);
   });
 
   navigator.mediaDevices.addEventListener('devicechange', enumerate);
